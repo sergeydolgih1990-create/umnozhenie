@@ -112,7 +112,7 @@
     if (mode === 'fast') {
       const done = R.items.filter((it) => it.at !== null).length, total = R.total || 1;
       const rec = g.marks.filter((x) => x <= R.elapsed).length;
-      return `<div class="panel race"><div class="race-head">${ic('clock')}<span id="race-t">${F.time(R.elapsed)}</span><span class="soft">решено к этой секунде</span></div>
+      return `<div class="panel race"><div class="race-head">${ic('clock')}<span id="race-t">${F.time(R.elapsed)}</span><span class="soft">отвечено к этой секунде</span></div>
         <div class="lane"><span>Ты</span><div class="track"><i id="race-you" style="width:${done / total * 100}%"></i></div><span class="t" id="race-n1">${done}</span></div>
         <div class="lane rec"><span>Рекорд</span><div class="track"><i id="race-rec" style="width:${rec / total * 100}%"></i></div><span class="t" id="race-n2">${rec}</span></div></div>`;
     }
@@ -282,7 +282,7 @@
     const sub = rv.pkg.mode === 'dictation' ? 'Отметьте, что ребёнок написал верно' : 'Нажали не то — поправьте отметку';
     return `<div class="screen">
       <div class="topbar"><div class="grow who"><div class="name">${title}</div><div class="title">${sub}</div></div>
-        <button class="icon-btn" data-act="rDiscard" aria-label="Не сохранять">${ic('trash')}</button></div>
+        <button class="pill" data-act="rDiscard">Не сохранять</button></div>
       <div class="counts"><div class="count ok"><b>${ok}</b><span>верно</span></div><div class="count bad"><b>${bad}</b><span>неверно</span></div><div class="count skip"><b>${none}</b><span>без отметки</span></div></div>
       <div class="review-list" id="rlist">${rows}</div>
       ${none ? `<button class="btn btn-light" data-act="rAllOk">${ic('check')}Остальные — верно</button>` : ''}

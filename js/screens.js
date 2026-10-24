@@ -192,7 +192,7 @@
       <div class="card form">
         <div class="field"><span>Режим</span><div class="choice">${modes}</div></div>
         ${stream ? `<div class="field"><span>Примеры</span><div class="choice">${ops}</div></div>`
-          : stepper('Умножение, примеров', 'mul', 0, 40, 1) + stepper('Деление, примеров', 'div', 0, 40, 1)}
+          : stepper('Примеров на умножение', 'mul', 0, 40, 1) + stepper('Примеров на деление', 'div', 0, 40, 1)}
         ${timing}
         <div class="field"><span>Таблицы</span><div class="choice">${tables}</div></div>
         ${sw('Голос читает пример', 'voice')}
@@ -273,7 +273,7 @@
     const have = d.cups[p.id] || [];
     const cups = S.cupDefs().filter((c) => c.op === op || c.id === 'all').map((c) => {
       const pr2 = S.cupProgress(d, p.id, c), won = have.indexOf(c.id) >= 0;
-      return won ? `<span class="cup">${ic('trophy')}${c.name}</span>` : `<span class="cup off">${ic('trophy')}${c.id === 'all' ? 'Вся таблица' : c.short}: ${pr2.got} из ${pr2.of}</span>`;
+      return won ? `<span class="cup">${ic('trophy')}${c.name}</span>` : `<span class="cup off">${ic('trophy')}${c.id === 'all' ? 'Вся таблица: строк ' + pr2.got + ' из ' + pr2.of : c.short + ': золотых ' + pr2.got + ' из ' + pr2.of}</span>`;
     }).join('');
     return `<div class="screen scroll">${topbar('Карта таблицы', { right: starsPill(p) })}
       <div class="toggle"><button class="${op === 'm' ? 'on' : ''}" data-act="mapOp" data-v="m">Умножение</button><button class="${op === 'd' ? 'on' : ''}" data-act="mapOp" data-v="d">Деление</button></div>
@@ -387,7 +387,7 @@
       stats = `<div class="stats3"><div><b>${U.num(ys[ys.length - 1])}${M.unit}</b><span>последний</span></div><div><b>${U.num(best)}${M.unit}</b><span>лучший</span></div><div><b>${U.num(avg)}${M.unit}</b><span>в среднем</span></div></div>${M.total ? `<div class="muted center" style="margin-top:6px">${metric === 'errors' ? 'всего ошибок за раунд' : 'по всем примерам раунда'}</div>` : ''}`;
     }
     const legend = series.filter((s) => s.pts.length).map((s) => `<span><i style="background:${s.color}"></i>${s.name}</span>`).join('') +
-      (school.length ? `<span><i style="background:var(--gold)"></i>школьный блиц${M.school ? '' : ' (линия)'}</span>` : '');
+      (school.length ? `<span>${starSm()} блиц в школе${M.school ? '' : ' — пунктир'}</span>` : '');
     return `<div class="screen scroll">${topbar('Графики', { right: starsPill(p) })}
       <div class="chips">${chips}</div>
       <div class="chips">${metrics}</div>
@@ -445,17 +445,17 @@
       html += sec('Школьный блиц: ' + esc(p.name), 'calendar', `
         <label class="field"><span>Дата ближайшего блица</span><div class="form-row"><input class="inp" type="date" data-f="blitzDate" value="${esc(f.blitzDate)}"><button class="btn btn-light btn-sm" data-act="saveBlitz">Сохранить</button>${p.blitzDate ? '<button class="btn btn-light btn-sm" data-act="clearBlitz">Убрать</button>' : ''}</div></label>
         <div class="field"><span>Результат блица в школе</span><input class="inp" type="date" data-f="schDate" value="${esc(f.schDate)}"><div class="form-row">
-          <input class="inp" type="number" inputmode="numeric" min="0" max="100" data-f="schOk" value="${esc(f.schOk)}" placeholder="верно">
-          <input class="inp" type="number" inputmode="numeric" min="1" max="100" data-f="schTotal" value="${esc(f.schTotal)}" placeholder="из">
+          <input class="inp" type="number" inputmode="numeric" min="0" max="100" data-f="schOk" value="${esc(f.schOk)}" placeholder="верно"><span class="of">из</span>
+          <input class="inp" type="number" inputmode="numeric" min="1" max="100" data-f="schTotal" value="${esc(f.schTotal)}" placeholder="всего">
           <button class="btn btn-primary btn-sm" data-act="addSchool">Добавить</button></div></div>
         ${school ? `<div class="rows">${school}</div>` : '<div class="muted">Школьных результатов пока нет — они появятся на графиках золотыми отметками.</div>'}`);
     }
-    const players = d.players.map((x) => { const L = levelInfo(x.xp); return `<div class="lrow"><span class="avatar sm">${x.avatar}</span><span class="grow"><b>${esc(x.name)}</b><span>Уровень ${L.lv} · ${x.stars || 0} звёзд · ${U.THEMES[x.theme].name}</span></span>
+    const players = d.players.map((x) => { const L = levelInfo(x.xp); return `<div class="lrow"><span class="avatar sm">${x.avatar}</span><span class="grow"><b>${esc(x.name)}</b><span>Уровень ${L.lv} · ${x.stars || 0} ${pl(x.stars || 0, 'звезда', 'звезды', 'звёзд')} · ${U.THEMES[x.theme].name}</span></span>
       <button class="mini-btn" data-act="editPlayer" data-id="${x.id}" aria-label="Изменить">${ic('edit')}</button><button class="mini-btn danger" data-act="delPlayer" data-id="${x.id}" aria-label="Удалить">${ic('trash')}</button></div>`; }).join('');
     html += sec('Игроки', 'users', `<div class="rows">${players}</div><button class="btn btn-light btn-sm" data-act="addPlayer">${ic('plus')}Добавить игрока</button>`);
 
     const emo = PRIZE_EMOJI.map((e) => `<button class="av${f.prizeEmoji === e ? ' on' : ''}" data-act="fset" data-k="prizeEmoji" data-v="${e}">${e}</button>`).join('');
-    const prizes = d.prizes.map((z) => `<div class="lrow"><span class="emo-s">${z.emoji}</span><span class="grow"><b>${esc(z.name)}</b><span>${z.price} звёзд</span></span>
+    const prizes = d.prizes.map((z) => `<div class="lrow"><span class="emo-s">${z.emoji}</span><span class="grow"><b>${esc(z.name)}</b><span>${z.price} ${pl(z.price, 'звезда', 'звезды', 'звёзд')}</span></span>
       <button class="mini-btn" data-act="editPrize" data-id="${z.id}" aria-label="Изменить">${ic('edit')}</button><button class="mini-btn danger" data-act="delPrize" data-id="${z.id}" aria-label="Удалить">${ic('trash')}</button></div>`).join('');
     html += sec('Призы', 'gift', `${prizes ? `<div class="rows">${prizes}</div>` : '<div class="muted">Ориентир: один «Школьный блиц» даёт 15–25 звёзд. Маленький приз — около 100, большой — около 500.</div>'}
       <div class="field"><span>${f.prizeId ? 'Изменить приз' : 'Новый приз'}</span><div class="avatar-grid prize-emo">${emo}</div>

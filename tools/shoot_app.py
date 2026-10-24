@@ -24,7 +24,7 @@ SHOTS.update({
     "playerform": ("screen=playerForm", PHONE),
     "fast": ("player=p2&play=fast&upto=7", PHONE),
     "minute": ("player=p3&play=minute&upto=9", PHONE),
-    "streak": ("player=p1&play=streak&upto=5", PHONE),
+    "streak": ("player=p1&play=streak&upto=3", PHONE),
     "dictation": ("player=p3&play=dictation&upto=3", PHONE),
     "review": ("player=p1&play=dictation&upto=16&stage=review", PHONE),
     "review-fast": ("player=p2&play=limit&upto=20&stage=review", PHONE),

@@ -170,7 +170,7 @@ html.app-root, .app-root body { margin: 0; height: 100%; overflow: hidden; backg
   display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 10px 0 rgba(0, 0, 0, .14);
 }
 .example {
-  font-weight: 900; font-size: max(56px, min(34cqw, 20cqh, 160px)); line-height: 1; letter-spacing: -.01em;
+  font-weight: 900; font-size: max(56px, min(34cqw, 20cqh, 220px)); line-height: 1; letter-spacing: -.01em;
   white-space: nowrap; font-variant-numeric: tabular-nums;
 }
 .example .op { color: var(--op); }
@@ -219,7 +219,7 @@ html.app-root, .app-root body { margin: 0; height: 100%; overflow: hidden; backg
   content: ""; display: block; position: sticky; bottom: -4px; height: 40px; margin-top: -40px; pointer-events: none;
   background: linear-gradient(rgba(255, 255, 255, 0), #fff);
 }
-.mark button { width: 46px; height: 42px; border-radius: 12px; border: 2px solid var(--line); background: #fff; display: grid; place-items: center; color: #b9bdd3; padding: 0; }
+.mark button { width: 48px; height: 44px; border-radius: 12px; border: 2px solid var(--line); background: #fff; display: grid; place-items: center; color: #b9bdd3; padding: 0; }
 .mark button .ic { width: 18px; height: 18px; }
 .mark button.on.ok { background: var(--ok); border-color: var(--ok); color: #fff; }
 .mark button.on.bad { background: var(--bad); border-color: var(--bad); color: #fff; }
@@ -298,6 +298,14 @@ button.avatar { border: 0; padding: 0; }
 .lrow .grow .badge { display: inline-block; }
 .form-row > .inp[type="date"] { flex: 1 1 150px; }
 .form-row > .inp[type="number"] { flex: 1 1 70px; }
+.form-row > .of { flex: 0 0 auto; align-self: center; font-weight: 900; color: var(--ink-soft); }
+.review-list {
+  background:
+    linear-gradient(rgba(255, 255, 255, 0), #fff 70%) center bottom / 100% 36px no-repeat local,
+    radial-gradient(farthest-side at 50% 100%, rgba(31, 33, 64, .22), transparent) center bottom / 100% 16px no-repeat scroll,
+    var(--card);
+}
+.review-list.static { background: var(--card); }
 .mini-btn { width: 42px; height: 42px; border-radius: 12px; border: 2px solid var(--line); background: #fff; color: var(--ink-soft); display: grid; place-items: center; flex: none; padding: 0; }
 .mini-btn .ic { width: 20px; height: 20px; }
 .mini-btn.danger { color: var(--bad-dark); }

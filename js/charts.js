@@ -2,7 +2,7 @@
 (function (U) {
   'use strict';
 
-  const W = 340, H = 210, L = 38, R = 12, T = 14, B = 28;
+  const W = 340, H = 210, L = 38, R = 20, T = 14, B = 28;
   const COLORS = ['#4f7cff', '#ff7a2a'];
   const day = (ts) => { const d = new Date(ts); d.setHours(0, 0, 0, 0); return d.getTime(); };
   const dm = (ts) => { const d = new Date(ts); return String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0'); };
@@ -66,7 +66,6 @@
     school.forEach((s) => {
       const x = sx(s.x).toFixed(1);
       g += `<path d="M${x} ${T}V${H - B}" stroke="#e0a100" stroke-width="1.5" stroke-dasharray="4 4"/>`;
-      if (o.schoolY) g += U.art.starAt(+x, sy(s.y), 8);
     });
     series.forEach((s) => {
       if (!s.pts.length) return;
@@ -74,6 +73,8 @@
       g += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>`;
       s.pts.forEach((p) => g += `<circle cx="${sx(p.x).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="4" fill="#fff" stroke="${s.color}" stroke-width="2.5"/>`);
     });
+    // звёзды школьных результатов — поверх линий, чуть сдвинуты от края, чтобы не обрезались
+    if (o.schoolY) school.forEach((s) => { g += U.art.starAt(Math.min(sx(s.x), W - 10), Math.max(sy(s.y), T + 2), 8); });
     return `<svg class="chart" viewBox="0 0 ${W} ${H}" aria-hidden="true">${g}</svg>`;
   };
 })(window.U = window.U || {});

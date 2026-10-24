@@ -90,7 +90,7 @@
   function cupDefs() {
     const list = [];
     RANGE.forEach((r) => list.push({ id: 'm' + r, op: 'm', row: r, name: 'Повелитель ' + ROW[r], short: '×' + r, bonus: 15 }));
-    RANGE.forEach((r) => list.push({ id: 'd' + r, op: 'd', row: r, name: 'Деление на ' + r, short: ':' + r, bonus: 15 }));
+    RANGE.forEach((r) => list.push({ id: 'd' + r, op: 'd', row: r, name: 'Деление на ' + r, short: 'на ' + r, bonus: 15 }));
     list.push({ id: 'all', name: 'Вся таблица', short: 'всё', bonus: 50 });
     return list;
   }

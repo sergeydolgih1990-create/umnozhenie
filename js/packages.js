@@ -3,12 +3,12 @@
   'use strict';
 
   U.MODES = {
-    teacher: { name: 'Учитель', icon: 'clock', color: '#4f7cff', hint: 'следующий пример через каждые N секунд, как диктует учитель' },
+    teacher: { name: 'Учитель', icon: 'clock', color: '#4f7cff', hint: 'следующий пример — через заданные секунды, как диктует учитель' },
     fast: { name: 'Быстрый', icon: 'bolt', color: '#ff7a2a', hint: 'следующий пример сразу после отметки, итог — общее время' },
-    limit: { name: 'Лимит', icon: 'hourglass', color: '#e0a100', hint: 'сразу после отметки, но не больше N секунд на пример' },
+    limit: { name: 'Лимит', icon: 'hourglass', color: '#e0a100', hint: 'следующий сразу после отметки, но время на пример ограничено' },
     accel: { name: 'Ускорение', icon: 'gauge', color: '#8b5cf6', hint: 'ритм учителя, но интервал сокращается к концу' },
     minute: { name: 'Минута', icon: 'clock', color: '#2fbf71', hint: 'сколько верных успеет за отведённое время' },
-    streak: { name: 'До первой ошибки', icon: 'flame', color: '#ff5c5c', hint: 'серия без ошибок; на пример не больше N секунд' },
+    streak: { name: 'До первой ошибки', icon: 'flame', color: '#ff5c5c', hint: 'серия без ошибок; время на пример ограничено' },
     dictation: { name: 'Диктант на слух', icon: 'sound', color: '#14a3b8', hint: 'пример читает голос, ответы на бумаге, проверка в конце' },
     training: { name: 'Работа над ошибками', icon: 'target', color: '#ff5c8a', hint: 'трудные примеры из последних раундов, звёзды двойные' }
   };
@@ -48,7 +48,7 @@
     if (p.mode === 'training') return p.max;
     return (p.mul || 0) + (p.div || 0);
   };
-  function opsText(p) { return p.mul && p.div ? '× и :' : p.div ? 'только деление' : 'только умножение'; }
+  function opsText(p) { return p.mul && p.div ? 'умножение и деление' : p.div ? 'только деление' : 'только умножение'; }
   function tablesText(p) {
     const t = (p.tables || []).slice().sort((a, b) => a - b);
     if (t.join() === BASE.tables.join()) return '';
@@ -60,12 +60,14 @@
     else if (p.mode === 'streak') parts.push('пока без ошибок', opsText(p), 'до ' + num(p.interval) + ' с на пример');
     else if (p.mode === 'training') parts.push('до ' + p.max + ' трудных примеров', 'звёзды ×2');
     else {
-      const n = U.pkgCount(p);
-      parts.push(n + ' ' + U.plural(n, 'пример', 'примера', 'примеров'));
-      parts.push(p.mul && p.div ? p.mul + ' × и ' + p.div + ' :' : opsText(p));
-      if (p.mode === 'teacher' || p.mode === 'dictation') parts.push(num(p.interval) + ' с на пример');
-      if (p.mode === 'limit') parts.push('до ' + num(p.interval) + ' с на пример');
-      if (p.mode === 'accel') parts.push('от ' + num(p.from) + ' до ' + num(p.to) + ' с');
+      const n = U.pkgCount(p), word = U.plural(n, 'пример', 'примера', 'примеров');
+      parts.push(p.mul && p.div ? n + ' ' + word + ': ' + p.mul + ' на умножение и ' + p.div + ' на деление'
+        : n + ' ' + word + (p.div ? ' на деление' : ' на умножение'));
+      if (p.mode === 'teacher') parts.push('по ' + num(p.interval) + ' с на пример');
+      if (p.mode === 'dictation') parts.push('по ' + num(p.interval) + ' с, читает голос');
+      if (p.mode === 'fast') parts.push('на скорость');
+      if (p.mode === 'limit') parts.push('не больше ' + num(p.interval) + ' с на пример');
+      if (p.mode === 'accel') parts.push('от ' + num(p.from) + ' до ' + num(p.to) + ' с на пример');
     }
     const tt = tablesText(p);
     if (tt) parts.push(tt);
