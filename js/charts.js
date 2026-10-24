@@ -8,10 +8,12 @@
   const dm = (ts) => { const d = new Date(ts); return String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0'); };
 
   U.METRICS = {
+    // get — точки рядов; total — одно число раунда для «последний / лучший / в среднем»
     pct: { name: '% верных', unit: '%', max: 100, names: ['% верных'], get: (r) => [r.s.total ? Math.round(r.s.correct / r.s.total * 100) : 0], school: true },
-    errors: { name: 'Ошибки', unit: '', names: ['в умножении', 'в делении'], get: (r) => [r.s.mulMiss, r.s.divMiss] },
+    errors: { name: 'Ошибки', unit: '', names: ['в умножении', 'в делении'], get: (r) => [r.s.mulMiss, r.s.divMiss], total: (r) => r.s.mulMiss + r.s.divMiss },
     time: { name: 'Время раунда', unit: ' с', names: ['секунд на раунд'], get: (r) => [Math.round(r.s.timeMs / 100) / 10] },
-    avg: { name: 'Сек. на пример', unit: ' с', names: ['умножение', 'деление'], get: (r) => [r.s.avgMul === null ? null : r.s.avgMul / 1000, r.s.avgDiv === null ? null : r.s.avgDiv / 1000] },
+    avg: { name: 'Сек. на пример', unit: ' с', names: ['умножение', 'деление'], get: (r) => [r.s.avgMul === null ? null : r.s.avgMul / 1000, r.s.avgDiv === null ? null : r.s.avgDiv / 1000],
+      total: (r) => (r.s.avgMs === null ? null : Math.round(r.s.avgMs / 100) / 10) },
     score: { name: 'Очки режима', unit: '', names: ['очки'], get: (r) => [r.s.score] }
   };
 
@@ -34,10 +36,11 @@
     return series;
   };
 
+  // Верх оси — четыре «круглых» шага, чтобы подписи были целыми: 4, 8, 20, 40, 100…
   function niceMax(v) {
-    if (v <= 5) return 5;
-    const p = Math.pow(10, Math.floor(Math.log10(v))), n = v / p;
-    return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * p;
+    const raw = Math.max(v, 1) / 4, p = Math.pow(10, Math.floor(Math.log10(raw))), n = raw / p;
+    const step = (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p;
+    return Math.max(4, step * 4);
   }
 
   // series: [{name, color, pts:[{x,y}]}]; school: [{x, y, label}] — школьные блицы
@@ -49,7 +52,7 @@
     let x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
     if (x1 - x0 < 86400000) { x0 -= 43200000; x1 += 43200000; }
     const ys = pts.map((p) => p.y).concat(o.schoolY ? school.map((s) => s.y) : []);
-    const yMax = o.max || niceMax(Math.max.apply(null, ys.concat([1])) * 1.1);
+    const yMax = o.max || niceMax(Math.max.apply(null, ys.concat([1])));
     const sx = (x) => L + (x - x0) / (x1 - x0) * (W - L - R);
     const sy = (y) => T + (1 - y / yMax) * (H - T - B);
     let g = '';

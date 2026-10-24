@@ -381,10 +381,10 @@
     let chart = '<div class="empty">Сыграйте ещё пару раундов — появится график.</div>', stats = '';
     if (points.length + (series[1] ? series[1].pts.length : 0) >= 2) {
       chart = U.chartSVG(series, { max: M.max, school, schoolY: !!M.school });
-      const ys = points.map((x) => x.y), lower = LOWER_BETTER[metric];
+      const ys = M.total ? rounds.map(M.total).filter((y) => y !== null) : points.map((x) => x.y), lower = LOWER_BETTER[metric];
       const best = lower ? Math.min.apply(null, ys) : Math.max.apply(null, ys);
       const avg = Math.round(ys.reduce((a, b) => a + b, 0) / ys.length * 10) / 10;
-      stats = `<div class="stats3"><div><b>${U.num(ys[ys.length - 1])}${M.unit}</b><span>последний</span></div><div><b>${U.num(best)}${M.unit}</b><span>лучший</span></div><div><b>${U.num(avg)}${M.unit}</b><span>в среднем</span></div></div>`;
+      stats = `<div class="stats3"><div><b>${U.num(ys[ys.length - 1])}${M.unit}</b><span>последний</span></div><div><b>${U.num(best)}${M.unit}</b><span>лучший</span></div><div><b>${U.num(avg)}${M.unit}</b><span>в среднем</span></div></div>${M.total ? `<div class="muted center" style="margin-top:6px">${metric === 'errors' ? 'всего ошибок за раунд' : 'по всем примерам раунда'}</div>` : ''}`;
     }
     const legend = series.filter((s) => s.pts.length).map((s) => `<span><i style="background:${s.color}"></i>${s.name}</span>`).join('') +
       (school.length ? `<span><i style="background:var(--gold)"></i>школьный блиц${M.school ? '' : ' (линия)'}</span>` : '');

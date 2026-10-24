@@ -5,7 +5,7 @@
   const ui = U.ui, A = U.art, ic = A.icon, esc = U.esc, F = U.fmt, S = U.score;
   const starSm = () => A.star('ic sm');
   const touch = () => window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-  let R = null, ctx = null, raf = 0, wake = null, sig = '';
+  let R = null, ctx = null, raf = 0, iv = 0, wake = null, sig = '';
 
   const P = U.play = {};
   P.active = () => !!R && !R.finished && ui.screen === 'round';
@@ -60,6 +60,7 @@
   }
   function onFinish() {
     cancelAnimationFrame(raf);
+    clearInterval(iv);
     releaseWake();
     const items = R.items.map((it) => {
       const o = { k: it.k, m: it.m, t: it.t === null ? null : Math.round(it.t), at: it.at === null ? null : Math.round(it.at) };
@@ -76,20 +77,26 @@
     const c = R && R.cur();
     return [R ? R.items.length : -1, c ? c.m : '', R && R.paused, R && R.pendingEnd, ctx.count, ctx.cdPaused].join('|');
   }
+  // Один шаг часов. Ходят и по кадрам (плавная полоска), и по таймеру раз в 0,1 с —
+  // на случай, если браузер придерживает кадры (экономия энергии, фоновые режимы).
+  function frame() {
+    if (!R || ui.screen !== 'round') return false;
+    R.tick(performance.now());
+    if (!R || R.finished) return false;
+    const s = signature();
+    if (s !== sig) U.render(); else updateDynamic();
+    return true;
+  }
   function loop() {
     cancelAnimationFrame(raf);
-    const f = () => {
-      if (!R || ui.screen !== 'round') return;
-      R.tick(performance.now());
-      if (!R || R.finished) return;
-      const s = signature();
-      if (s !== sig) U.render(); else updateDynamic();
-      raf = requestAnimationFrame(f);
-    };
+    clearInterval(iv);
+    const f = () => { if (frame()) raf = requestAnimationFrame(f); };
     raf = requestAnimationFrame(f);
+    iv = setInterval(() => { if (!frame()) clearInterval(iv); }, 100);
   }
   function stop() {
     cancelAnimationFrame(raf);
+    clearInterval(iv);
     if (ctx) clearTimeout(ctx.timer);
     releaseWake();
     U.sound.silence();

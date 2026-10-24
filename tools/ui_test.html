@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="ru" class="app-root">
+<head><meta charset="utf-8"><title>Сценарий интерфейса</title><link rel="stylesheet" href="../css/app.css"></head>
+<body>
+<div id="app" class="app" data-theme="space"><div class="bg" id="bg"></div><div class="view" id="view"></div><div id="modal" hidden></div></div>
+<script src="../js/themes.js"></script>
+<script src="../js/art.js"></script>
+<script src="../js/store.js"></script>
+<script src="../js/gen.js"></script>
+<script src="../js/packages.js"></script>
+<script src="../js/engine.js"></script>
+<script src="../js/scoring.js"></script>
+<script src="../js/sound.js"></script>
+<script src="../js/charts.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/screens.js"></script>
+<script src="../js/play.js"></script>
+<script>
+/* Сценарий пользователя с настоящими таймерами раунда. Запуск: tools/run_ui_test.py (Edge без окна, виртуальное время). */
+(async function () {
+  const log = [];
+  let ok = 0, fail = 0;
+  const check = (name, cond, info) => { if (cond) ok++; else { fail++; log.push('FAIL ' + name + (info !== undefined ? ' — ' + JSON.stringify(info) : '')); } };
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const $ = (s) => document.querySelector(s);
+  const click = (sel) => { const el = typeof sel === 'string' ? $(sel) : sel; if (!el) throw new Error('нет элемента ' + sel); el.click(); };
+  const D = () => U.store.data, R = () => U.play.round();
+  async function startRound(id) { click(`[data-act="play"][data-id="${id}"]`); await wait(3300); }
+  try {
+    U.store.useMemory(null);
+    U.uiInit();
+    U.render();
+    check('старт: экран игроков', U.ui.screen === 'players');
+
+    click('[data-act="addPlayer"]');
+    U.ui.form.name = 'Тест';
+    click('[data-act="fset"][data-k="theme"][data-v="dragon"]');
+    check('форма игрока: имя не теряется при смене темы', $('[data-f="name"]').value === 'Тест');
+    click('[data-act="savePlayer"]');
+    check('игрок создан, главный экран', U.ui.screen === 'home' && D().players.length === 1 && U.player().theme === 'dragon');
+
+    /* Учитель: ритм, отметка, пауза, прерывание */
+    click('[data-act="packages"]');
+    check('экран пакетов', U.ui.screen === 'packages' && document.querySelectorAll('.pkg-card').length === 12);
+    click('[data-act="play"][data-id="school"]');
+    await wait(500);
+    check('отсчёт 3-2-1', !!$('.count-big') && !R().running);
+    await wait(2800);
+    check('первый пример через 3 с', R().running && R().items.length === 1 && !!$('.example'));
+    click('[data-act="markOk"]');
+    await wait(100);
+    check('учитель: отметка не листает', R().items.length === 1 && R().items[0].m === 1 && /Отмечено/.test($('.card-badge').textContent));
+    await wait(5000);
+    check('учитель: через 5 с следующий', R().items.length === 2, R().items.length);
+    await wait(5000);
+    check('учитель: третий, второй без отметки', R().items.length === 3 && R().items[1].m === null);
+    click('[data-act="pause"]');
+    const el = R().elapsed;
+    await wait(8000);
+    check('пауза держит время', R().items.length === 3 && Math.abs(R().elapsed - el) < 50, [R().elapsed, el]);
+    click('[data-act="resume"]');
+    await wait(5100);
+    check('после паузы ритм продолжается', R().items.length === 4, R().items.length);
+    U.play.askAbort();
+    click('[data-act="modalYes"]');
+    await wait(400);
+    check('прервать — назад к пакетам, без сохранения', U.ui.screen === 'packages' && D().rounds.length === 0, U.ui.screen);
+
+    /* Быстрый: 20 отметок, клавиши и свайп, сверка, сохранение */
+    await startRound('fast');
+    for (let i = 0; i < 18; i++) { click(i === 4 ? '[data-act="markBad"]' : '[data-act="markOk"]'); await wait(700); }
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    await wait(700);
+    const view = document.getElementById('view');
+    view.dispatchEvent(new PointerEvent('pointerdown', { clientX: 100, clientY: 400, bubbles: true }));
+    view.dispatchEvent(new PointerEvent('pointerup', { clientX: 260, clientY: 410, bubbles: true }));
+    await wait(300);
+    check('быстрый: после 20 отметок — проверка', U.ui.screen === 'review', U.ui.screen);
+    check('быстрый: 19 верно и 1 неверно', U.ui.review && U.ui.review.items.filter((x) => x.m === 1).length === 19);
+    click('[data-act="rmark"][data-i="4"][data-v="1"]');
+    check('сверка: исправили отметку', U.ui.review.items[4].m === 1 && $('.count.ok b').textContent === '20');
+    click('[data-act="rSave"]');
+    check('итог после сохранения', U.ui.screen === 'result' && D().rounds.length === 1 && U.player().stars > 0, U.player().stars);
+    check('первый результат — плашка', /Первый результат/.test(document.body.textContent));
+    const r1 = D().rounds[0];
+    check('быстрый: время раунда около 14 с', r1.durationMs > 12000 && r1.durationMs < 17000, r1.durationMs);
+
+    click('[data-act="again"]');
+    await wait(3300);
+    check('«Ещё раз» запускает тот же пакет', U.ui.screen === 'round' && R().pkg.id === 'fast' && !!$('.race'));
+    U.play.askAbort(); click('[data-act="modalYes"]'); await wait(400);
+
+    /* Серия: отмена ошибки и конец */
+    U.go('home', {}, { reset: true }); click('[data-act="packages"]');
+    await startRound('streak');
+    click('[data-act="markOk"]'); await wait(400); click('[data-act="markOk"]'); await wait(400); click('[data-act="markBad"]'); await wait(300);
+    check('серия: окно «нажали по ошибке»', !!$('[data-act="undoStreak"]'));
+    click('[data-act="undoStreak"]'); await wait(300);
+    check('серия: после отмены продолжаем', U.ui.screen === 'round' && R().items.length === 4 && R().items[2].m === 1);
+    click('[data-act="markBad"]'); await wait(3300);
+    check('серия: через 3 с после ошибки — проверка', U.ui.screen === 'review');
+    click('[data-act="rSave"]');
+    check('серия: результат «3 подряд»', /3\s*подряд/.test($('.score').textContent), $('.score').textContent);
+
+    /* Минута */
+    U.go('home', {}, { reset: true }); click('[data-act="packages"]');
+    await startRound('minute');
+    for (let t = 0; t < 30; t++) { click('[data-act="markOk"]'); await wait(2000); }
+    await wait(1500);
+    check('минута: через 60 с — проверка', U.ui.screen === 'review', U.ui.screen);
+    const mItems = U.ui.review.items.length;
+    check('минута: около 30 примеров, все отмечены', mItems >= 29 && mItems <= 31 && U.ui.review.items.every((x) => x.m === 1), mItems);
+    click('[data-act="rSave"]');
+
+    /* Диктант: кнопок нет, проверка листка */
+    U.go('home', {}, { reset: true }); click('[data-act="packages"]');
+    await startRound('dictation');
+    check('диктант: пример скрыт, кнопок нет', /№ 1/.test($('.example').textContent) && !$('[data-act="markOk"]'));
+    await wait(16 * 5000 + 300);
+    check('диктант: через 80 с — проверка листка', U.ui.screen === 'review' && U.ui.review.items.every((x) => x.m === null));
+    click('[data-act="rmark"][data-i="0"][data-v="0"]');
+    click('[data-act="rAllOk"]');
+    check('диктант: «Остальные — верно»', U.ui.review.items.filter((x) => x.m === 1).length === 15);
+    click('[data-act="rSave"]');
+    check('диктант: 15 из 16', /15\s*из 16/.test($('.score').textContent));
+
+    /* Работа над ошибками из накопленных ошибок */
+    U.go('home', {}, { reset: true }); click('[data-act="packages"]');
+    const weak = U.score.weakList(D(), U.player().id, 16);
+    check('есть трудные примеры', weak.length >= 1, weak);
+    await startRound('training');
+    for (let i = 0; i < weak.length; i++) { click('[data-act="markOk"]'); await wait(500); }
+    check('тренировка: проверка', U.ui.screen === 'review');
+    click('[data-act="rSave"]');
+    check('тренировка: звёзды ×2', /×2/.test(document.body.textContent));
+
+    /* PIN, призы, раздел для родителей */
+    U.go('home', {}, { reset: true });
+    click('[data-act="parent"]');
+    check('первый вход: придумать PIN', U.ui.modal && U.ui.modal.mode === 'new');
+    '1234'.split('').forEach((v) => U.actions.pinKey({ v }));
+    '1234'.split('').forEach((v) => U.actions.pinKey({ v }));
+    check('PIN сохранён, раздел открыт', U.ui.screen === 'parent' && !!D().settings.pin);
+    U.ui.form.prizeName = 'Мороженое'; U.ui.form.prizePrice = '10';
+    click('[data-act="savePrize"]');
+    check('приз добавлен', D().prizes.length === 1);
+    click('[data-act="lockParent"]');
+    await wait(400);
+    click('[data-act="parent"]');
+    '0000'.split('').forEach((v) => U.actions.pinKey({ v }));
+    check('неверный PIN не пускает', U.ui.modal && /Неверный/.test(document.getElementById('modal').textContent));
+    '1234'.split('').forEach((v) => U.actions.pinKey({ v }));
+    check('верный PIN пускает', U.ui.screen === 'parent' && !U.ui.modal);
+    click('[data-act="lockParent"]'); await wait(400);
+    click('[data-act="prizes"]');
+    const before = U.player().stars;
+    click('[data-act="buyPrize"]');
+    check('покупка просит PIN', U.ui.modal && U.ui.modal.type === 'pin');
+    '1234'.split('').forEach((v) => U.actions.pinKey({ v }));
+    check('покупка списала звёзды', U.player().stars === before - 10 && D().purchases.length === 1);
+
+    /* Графики, карта, рекорды, история, удаление раунда */
+    U.go('home', {}, { reset: true });
+    click('[data-act="charts"]');
+    check('график нарисован', !!$('svg.chart'));
+    click('[data-act="chartMetric"][data-v="errors"]');
+    check('график ошибок', !!$('svg.chart') && /в делении/.test($('.chart-legend').textContent));
+    U.back(); await wait(300);
+    click('[data-act="map"]');
+    check('карта: 64 клетки', document.querySelectorAll('.cell').length === 64);
+    click('[data-act="mapOp"][data-v="d"]');
+    check('карта деления', /делимое/.test(document.body.textContent));
+    U.back(); await wait(300);
+    click('[data-act="records"]');
+    check('рекорды: строки пакетов', document.querySelectorAll('[data-act="recDetail"]').length >= 3);
+    click('[data-act="recTab"][data-v="hist"]');
+    const histRows = document.querySelectorAll('[data-act="roundDetail"]').length;
+    check('история: все раунды', histRows === D().rounds.length, [histRows, D().rounds.length]);
+    const nRounds = D().rounds.length, starsBefore = U.player().stars;
+    click('[data-act="roundDetail"]');
+    click('[data-act="delRound"]');
+    if (U.ui.modal && U.ui.modal.type === 'pin') '1234'.split('').forEach((v) => U.actions.pinKey({ v }));
+    click('[data-act="modalYes"]');
+    await wait(300);
+    check('раунд удалён, звёзды сняты', D().rounds.length === nRounds - 1 && U.player().stars < starsBefore);
+
+    /* Резервная копия: выгрузка и загрузка тем же форматом */
+    const text = JSON.stringify({ app: 'umnozhenie', v: 1, data: JSON.parse(JSON.stringify(D())) });
+    D().players[0].name = 'Испорчено';
+    U.store.importText(text);
+    check('копия загружается', D().players[0].name === 'Тест' && D().rounds.length === nRounds - 1);
+    let bad = false; try { U.store.importText('{"x":1}'); } catch (e) { bad = true; }
+    check('чужой файл не принимается', bad);
+
+    /* Свой пакет */
+    U.go('home', {}, { reset: true });
+    click('[data-act="packages"]');
+    click('[data-act="newPkg"]');
+    click('[data-act="ftable"][data-v="2"]');
+    U.ui.form.name = 'Только семёрка';
+    ['3', '4', '5', '6', '8', '9'].forEach((v) => click(`[data-act="ftable"][data-v="${v}"]`));
+    click('[data-act="savePkg"]');
+    await wait(400);
+    const cp = D().packages[0];
+    check('свой пакет сохранён', cp && cp.tables.join() === '7' && U.ui.screen === 'packages', cp);
+    await startRound(cp.id);
+    check('свой пакет: примеры только с 7', U.gen.parse(R().items[0].k).f.indexOf(7) >= 0);
+    U.play.askAbort(); click('[data-act="modalYes"]'); await wait(300);
+  } catch (e) {
+    fail++;
+    log.push('ОШИБКА СЦЕНАРИЯ: ' + e.message + ' @ ' + (e.stack || '').split('\n')[1]);
+  }
+  log.unshift('ИТОГ: ' + ok + ' ok, ' + fail + ' fail');
+  const pre = document.createElement('pre');
+  pre.id = 'result';
+  pre.textContent = log.join('\n');
+  document.body.appendChild(pre);
+})();
+</script>
+</body>
+</html>
