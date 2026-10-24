@@ -1,0 +1,17 @@
+{
+  "name": "Блиц по таблице умножения",
+  "short_name": "Блиц ×",
+  "description": "Тренажёр к школьному блицу: пример на экране, ребёнок отвечает вслух, взрослый отмечает.",
+  "lang": "ru",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#170f3f",
+  "theme_color": "#3b1e7c",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

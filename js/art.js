@@ -297,10 +297,25 @@
     list: '<path d="M8.5 6.5H20M8.5 12H20M8.5 17.5H20" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="4.5" cy="6.5" r="1.6" fill="currentColor"/><circle cx="4.5" cy="12" r="1.6" fill="currentColor"/><circle cx="4.5" cy="17.5" r="1.6" fill="currentColor"/>',
     sound: '<path d="M4 9.5H7.5L12 5.5V18.5L7.5 14.5H4Z" fill="currentColor" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M15.5 9A4 4 0 0 1 15.5 15M18 6.5A7.5 7.5 0 0 1 18 17.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
     back: '<path d="M14.5 5L7.5 12L14.5 19" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>',
+    bolt: '<path d="M13.5 2.5L5 13.5H11L10 21.5L19 10H13Z" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
+    gauge: '<path d="M4 17A8 8 0 1 1 20 17" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M12 15L16.5 9.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><circle cx="12" cy="15" r="2" fill="currentColor"/>',
+    hourglass: '<path d="M6.5 3.5H17.5M6.5 20.5H17.5M7.5 3.5C7.5 9 12 9.5 12 12C12 14.5 7.5 15 7.5 20.5M16.5 3.5C16.5 9 12 9.5 12 12C12 14.5 16.5 15 16.5 20.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 18.5C10 16.5 14 16.5 14.5 18.5Z" fill="currentColor"/>',
+    target: '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/>',
+    plus: '<path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>',
+    edit: '<path d="M4 20L5 15.5L15.5 5L19 8.5L8.5 19Z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M13.5 7L17 10.5" stroke="currentColor" stroke-width="2.2"/>',
+    trash: '<path d="M4.5 6.5H19.5M9.5 6.5V4H14.5V6.5M6.5 6.5L7.5 20H16.5L17.5 6.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 10.5V16M14 10.5V16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+    copy: '<rect x="8" y="8" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4H5.5A1.5 1.5 0 0 0 4 5.5V14.5A1.5 1.5 0 0 0 5.5 16H8" fill="none" stroke="currentColor" stroke-width="2.2"/>',
+    download: '<path d="M12 4V15M7 10.5L12 15.5L17 10.5M5 20H19" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>',
+    upload: '<path d="M12 16V5M7 9.5L12 4.5L17 9.5M5 20H19" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>',
+    gear: '<circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 2.8V5.5M12 18.5V21.2M2.8 12H5.5M18.5 12H21.2M5.5 5.5L7.4 7.4M16.6 16.6L18.5 18.5M5.5 18.5L7.4 16.6M16.6 7.4L18.5 5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
+    users: '<circle cx="9" cy="8.5" r="3.5" fill="currentColor"/><path d="M2.5 20C3 15.5 6 14 9 14C12 14 15 15.5 15.5 20Z" fill="currentColor"/><circle cx="17" cy="9.5" r="2.6" fill="currentColor" opacity=".6"/><path d="M15.8 14.2C18.8 14 21 15.8 21.5 19.5H17Z" fill="currentColor" opacity=".6"/>',
+    calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M3.5 10H20.5M8 3V7M16 3V7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
+    phone: '<rect x="6.5" y="2.5" width="11" height="19" rx="2.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M10.5 18.5H13.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
     question: '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M9.5 9.5A2.6 2.6 0 1 1 12 12.6V14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="17.3" r="1.4" fill="currentColor"/>'
   };
   U.art.icon = (name) => svg('0 0 24 24', ICONS[name] || '', 'ic');
   U.art.star = (cls) => svg('0 0 24 24', star5(12, 12.6, 10.5, '#ffc531', '#d99a00'), cls || 'ic');
+  U.art.starAt = (x, y, r) => star5(x, y, r, '#ffc531', '#b47f00');
 
   /* ---------- Салют для нового рекорда ---------- */
   U.art.confetti = function () {
