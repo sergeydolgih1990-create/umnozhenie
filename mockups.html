@@ -31,9 +31,9 @@
   body[data-show="pirate"] main [data-t]:not([data-t="pirate"]) { display: none; }
   .hrow h3 { margin: 14px 0 8px; font-size: 18px; font-weight: 900; }
   .hcards { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
-  .hcard { border-radius: 20px; padding: 10px 8px 12px; text-align: center; }
-  .hcard svg.hero { width: 100%; height: auto; display: block; }
-  .hc-name { font-weight: 900; font-size: 15px; margin-top: 4px; }
+  .hcard { border-radius: 20px; padding: 10px 8px 12px; text-align: center; display: flex; flex-direction: column; }
+  .hcard svg.hero { width: 100%; height: auto; display: block; flex: none; }
+  .hc-name { font-weight: 900; font-size: 15px; margin-top: 4px; min-height: 2.6em; display: flex; align-items: flex-end; justify-content: center; }
   .hc-title { font-weight: 800; font-size: 12px; color: var(--on-bg-soft); }
   @media (max-width: 640px) { .hcards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
   body.solo { background: #fff; }

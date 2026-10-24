@@ -37,10 +37,10 @@
 
   /* ---------- Космос: ракета ---------- */
   const ROCKET = [null,
-    { k: 0.74, body: '#efcd98', nose: '#d39a58', fin: '#d39a58', frame: '#b07c43', glass: '#d3f0ff', line: '#6b4823', tape: true },
-    { k: 0.82, body: '#ffffff', nose: '#ff5d5d', fin: '#ff5d5d', frame: '#9aa8d6', glass: '#7fd4ff', line: '#2a2f5a' },
-    { k: 0.9, body: '#f3f5ff', nose: '#ffb020', fin: '#4f7cff', frame: '#4f7cff', glass: '#7fd4ff', line: '#2a2f5a', boost: '#dfe5ff', stripe: '#4f7cff', win2: true },
-    { k: 0.96, body: '#eef3ff', nose: '#8b5cf6', fin: '#8b5cf6', frame: '#ffb020', glass: '#9be8ff', line: '#2a2f5a', boost: '#e3dbff', stripe: '#ffb020', win2: true, wings: true, antenna: true },
+    { k: 0.62, body: '#efcd98', nose: '#d39a58', fin: '#d39a58', frame: '#b07c43', glass: '#d3f0ff', line: '#6b4823', tape: true },
+    { k: 0.74, body: '#ffffff', nose: '#ff5d5d', fin: '#ff5d5d', frame: '#9aa8d6', glass: '#7fd4ff', line: '#2a2f5a' },
+    { k: 0.85, body: '#f3f5ff', nose: '#ffb020', fin: '#4f7cff', frame: '#4f7cff', glass: '#7fd4ff', line: '#2a2f5a', boost: '#dfe5ff', stripe: '#4f7cff', win2: true },
+    { k: 0.93, body: '#eef3ff', nose: '#8b5cf6', fin: '#8b5cf6', frame: '#ffb020', glass: '#9be8ff', line: '#2a2f5a', boost: '#e3dbff', stripe: '#ffb020', win2: true, wings: true, antenna: true },
     { k: 1, body: '#fff3c9', nose: '#ff8a1a', fin: '#ff5d5d', frame: '#ffb020', glass: '#b6f0ff', line: '#5a3200', boost: '#ffd36b', stripe: '#ff5d5d', win2: true, wings: true, antenna: true, glow: true, star: true }
   ];
 
@@ -67,10 +67,12 @@
     if (c.tape) g += `<rect x="50" y="100" width="100" height="9" fill="#f7e6c4" transform="rotate(-16 100 104)"/><rect x="50" y="128" width="100" height="7" fill="#f7e6c4" transform="rotate(10 100 131)"/>`;
     g += `<path d="M82 64C78 90 77 116 79 144" stroke="#fff" stroke-opacity=".6" stroke-width="5" fill="none" stroke-linecap="round"/></g>`;
     g += `<path d="${body}" fill="none" stroke="${L}" stroke-width="3.5" stroke-linejoin="round"/>`;
-    const win = (cy, r) => `<circle cx="100" cy="${cy}" r="${r + 5}" fill="${c.frame}" stroke="${L}" stroke-width="3"/>` +
-      `<circle cx="100" cy="${cy}" r="${r}" fill="${c.glass}"/>` +
+    const win = (cy, r, inner) => `<circle cx="100" cy="${cy}" r="${r + 5}" fill="${c.frame}" stroke="${L}" stroke-width="3"/>` +
+      `<circle cx="100" cy="${cy}" r="${r}" fill="${c.glass}"/>` + (inner || '') +
       `<path d="M${100 - r * 0.6} ${cy - r * 0.1}A${r * 0.62} ${r * 0.62} 0 0 1 ${100 - r * 0.05} ${cy - r * 0.62}" stroke="#fff" stroke-width="${r > 8 ? 3 : 2}" fill="none" stroke-linecap="round"/>`;
-    g += win(86, 11);
+    // с второй ступени в иллюминаторе появляется пилот
+    const pilot = s >= 2 ? '<circle cx="100" cy="89" r="7.5" fill="#ffd9b8"/><circle cx="97.3" cy="88" r="1.4" fill="#1b1b2f"/><circle cx="102.7" cy="88" r="1.4" fill="#1b1b2f"/><path d="M97.3 91.6Q100 93.8 102.7 91.6" stroke="#1b1b2f" stroke-width="1.3" fill="none" stroke-linecap="round"/><circle cx="95.6" cy="90.6" r="1.2" fill="#ff9fb2"/><circle cx="104.4" cy="90.6" r="1.2" fill="#ff9fb2"/>' : '';
+    g += win(86, 11, pilot);
     if (c.win2) g += win(111, 5.5);
     if (c.star) g += star5(100, 38, 9, '#ffe066', L);
     let out = c.glow ? aura('#ffd34d') + sparkles('#fff3a6') : '';
@@ -81,11 +83,11 @@
   /* ---------- Драконы: дракончик ---------- */
   const D = { body: '#4cc38a', dark: '#2a9c66', belly: '#ffe7a0', snout: '#83dcae', horn: '#fff1c4', wing: '#93e4bb', cheek: '#ff9fb2', line: '#1d5a3d', shell: '#fff4da', shellLine: '#b58a4a' };
   const DRAGON = [null,
-    { egg: true },
-    { hatch: true },
-    { k: 0.84, wings: 'small' },
-    { k: 0.94, wings: 'big', bigHorns: true },
-    { k: 1, wings: 'big', bigHorns: true, crown: true, fire: true, glow: true }
+    { k: 0.8, egg: true },
+    { k: 0.86, hatch: true },
+    { k: 0.9, wings: 'small' },
+    { k: 0.96, wings: 'big', bigHorns: true },
+    { k: 1, wings: 'big', bigHorns: true, crown: true, goldWings: true, glow: true }
   ];
 
   function dragonHead(cy, bigHorns) {
@@ -120,7 +122,7 @@
       g += `<path d="M30 186Q100 210 170 186Q162 210 100 214Q38 210 30 186Z" fill="#c88a4a" stroke="#7a4f22" stroke-width="3" stroke-linejoin="round"/>`;
       g += `<path d="M46 196L72 204M86 208L118 204M130 204L156 194" stroke="#7a4f22" stroke-width="2.5" stroke-linecap="round"/>`;
       g += sparkle(158, 58, 9, '#ffffff') + sparkle(40, 110, 6, '#ffffff');
-      return svg('0 0 200 220', g, 'hero');
+      return svg('0 0 200 220', scaled(c.k, 100, 200, g), 'hero');
     }
     if (c.hatch) {
       let g = nest(196);
@@ -131,14 +133,15 @@
       g += `<ellipse cx="80" cy="166" rx="9" ry="7" fill="#a6e6c4"/><ellipse cx="124" cy="174" rx="11" ry="8" fill="#a6e6c4"/>`;
       const paw = `<ellipse cx="74" cy="138" rx="10" ry="7" fill="${D.body}" stroke="${L}" stroke-width="3"/>`;
       g += paw + mirror(paw);
-      return svg('0 0 200 220', g, 'hero');
+      return svg('0 0 200 220', scaled(c.k, 100, 200, g), 'hero');
     }
     let g = '';
     g += `<path d="M128 172C158 180 174 162 170 138" stroke="${L}" stroke-width="18" fill="none" stroke-linecap="round"/>`;
     g += `<path d="M128 172C158 180 174 162 170 138" stroke="${D.body}" stroke-width="12" fill="none" stroke-linecap="round"/>`;
     g += `<path d="M160 130L184 128L172 150Z" fill="${D.dark}" stroke="${L}" stroke-width="3" stroke-linejoin="round"/>`;
+    const wingFill = c.goldWings ? '#ffd36b' : D.wing, veins = c.goldWings ? '#e08a00' : D.dark;
     const w = (c.wings === 'big'
-      ? `<path d="M72 128C46 88 14 92 8 122C24 120 28 134 40 134C38 148 52 152 60 146C62 154 68 154 72 148Z" fill="${D.wing}" stroke="${L}" stroke-width="3" stroke-linejoin="round"/><path d="M70 130L22 112M68 136L40 134M68 142L60 146" stroke="${D.dark}" stroke-width="2.5" stroke-linecap="round"/>`
+      ? `<path d="M72 128C46 88 14 92 8 122C24 120 28 134 40 134C38 148 52 152 60 146C62 154 68 154 72 148Z" fill="${wingFill}" stroke="${L}" stroke-width="3" stroke-linejoin="round"/><path d="M70 130L22 112M68 136L40 134M68 142L60 146" stroke="${veins}" stroke-width="2.5" stroke-linecap="round"/>`
       : `<path d="M72 134C54 112 36 114 32 130C42 128 46 138 54 138C54 146 64 148 72 144Z" fill="${D.wing}" stroke="${L}" stroke-width="3" stroke-linejoin="round"/><path d="M70 136L42 126M68 141L56 138" stroke="${D.dark}" stroke-width="2.5" stroke-linecap="round"/>`);
     g += w + mirror(w);
     g += `<ellipse cx="100" cy="154" rx="36" ry="32" fill="${D.body}" stroke="${L}" stroke-width="3.5"/>`;
@@ -149,7 +152,6 @@
     g += foot + mirror(foot) + arm + mirror(arm);
     g += dragonHead(98, c.bigHorns);
     if (c.crown) g += `<path d="M82 72L85 50L94 62L100 44L106 62L115 50L118 72Z" fill="#ffc531" stroke="#8a5a00" stroke-width="3" stroke-linejoin="round"/><circle cx="100" cy="64" r="3.5" fill="#ff5d7a"/><circle cx="88" cy="66" r="2.5" fill="#4f7cff"/><circle cx="112" cy="66" r="2.5" fill="#4f7cff"/>`;
-    if (c.fire) g += `<path d="M120 116C136 104 150 114 162 104C158 122 142 130 122 122Z" fill="#ff8a3d" stroke="#c4501a" stroke-width="2.5" stroke-linejoin="round"/><path d="M127 118C138 112 146 116 154 112C150 122 140 124 129 121Z" fill="#ffd23f"/>`;
     let out = c.glow ? aura('#ffd34d') + sparkles('#fffbe0') : '';
     out += scaled(c.k, 100, 192, g);
     return svg('0 0 200 220', out, 'hero');
@@ -177,20 +179,18 @@
     const c = SHIP[s], L = S.line;
     // Море — овальным пятном с мягкими краями, чтобы на фоне темы не было прямоугольника
     const sea = nid('sea');
-    let out = `<defs><radialGradient id="${sea}g" gradientUnits="userSpaceOnUse" cx="100" cy="190" r="100" gradientTransform="translate(0 190) scale(1 .42) translate(0 -190)"><stop offset=".72" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient><mask id="${sea}"><rect width="200" height="220" fill="url(#${sea}g)"/></mask></defs>`;
+    let out = `<defs><radialGradient id="${sea}g" gradientUnits="userSpaceOnUse" cx="100" cy="186" r="100" gradientTransform="translate(0 186) scale(1 .42) translate(0 -186)"><stop offset=".72" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient><mask id="${sea}"><rect width="200" height="220" fill="url(#${sea}g)"/></mask></defs>`;
     if (c.glow) out += aura('#ffe27a') + sparkles('#ffffff');
-    out += `<path d="M0 172Q25 162 50 172T100 172T150 172T200 172V220H0Z" fill="#8fd3f6" mask="url(#${sea})"/>`;
+    out += `<path d="M0 166Q25 156 50 166T100 166T150 166T200 166V220H0Z" fill="#8fd3f6" mask="url(#${sea})"/>`;
     let g = '';
     if (c.raft) {
-      g += `<rect x="97" y="80" width="6" height="78" rx="3" fill="${S.mast}" stroke="${L}" stroke-width="2.5"/>`;
+      // палуба из брёвен, видна чуть сверху
+      for (let i = 0; i < 5; i++) g += `<rect x="${38 + i * 5}" y="${144 + i * 6}" width="118" height="10" rx="5" fill="${i % 2 ? '#b07a42' : '#c48a4e'}" stroke="${L}" stroke-width="2.5"/>`;
+      g += `<path d="M62 144L68 178M132 144L138 178" stroke="${S.rope}" stroke-width="4" stroke-linecap="round"/>`;
+      g += `<rect x="97" y="80" width="6" height="80" rx="3" fill="${S.mast}" stroke="${L}" stroke-width="2.5"/>`;
       g += `<path d="M100 66L120 71L100 77Z" fill="#ff5d5d" stroke="${L}" stroke-width="2" stroke-linejoin="round"/>`;
       g += `<path d="M103 88L142 94Q147 114 140 136L103 132Z" fill="${S.sail}" stroke="${L}" stroke-width="3" stroke-linejoin="round"/>`;
       g += `<rect x="117" y="104" width="12" height="10" fill="#f2c9a0" stroke="${L}" stroke-width="2" transform="rotate(6 123 109)"/>`;
-      for (let i = 0; i < 5; i++) {
-        const cx = 56 + 22 * i;
-        g += `<circle cx="${cx}" cy="162" r="11" fill="${i % 2 ? '#b07a42' : '#c48a4e'}" stroke="${L}" stroke-width="3"/><circle cx="${cx}" cy="162" r="5.5" fill="none" stroke="#e6bf8a" stroke-width="2"/><circle cx="${cx}" cy="162" r="1.6" fill="#7a4a24"/>`;
-      }
-      g += `<path d="M44 152H156" stroke="${S.rope}" stroke-width="4" stroke-linecap="round"/>`;
     }
     if (c.boat) {
       g += `<rect x="97" y="56" width="6" height="94" rx="3" fill="${S.mast}" stroke="${L}" stroke-width="2.5"/>`;
@@ -223,7 +223,12 @@
           }
         }
       });
-      if (c.castle) g += `<path d="M24 132L22 108L60 108L60 132Z" fill="${c.gold ? '#8a3f1c' : S.hull}" stroke="${L}" stroke-width="3" stroke-linejoin="round"/><path d="M24 114H60" stroke="${c.gold ? '#ffc531' : S.hullDark}" stroke-width="3"/>`;
+      if (c.castle) {
+        const trim = c.gold ? '#ffc531' : '#e0a15e';
+        g += `<path d="M20 108V100M30 108V100M40 108V100M50 108V100M60 108V100M18 100H62" stroke="${L}" stroke-width="2.5" stroke-linecap="round"/>`;
+        g += `<path d="M24 132L22 108L60 108L60 132Z" fill="${c.gold ? '#8a3f1c' : S.hull}" stroke="${L}" stroke-width="3" stroke-linejoin="round"/>`;
+        g += `<rect x="29" y="114" width="9" height="9" rx="2" fill="#ffe08a" stroke="${trim}" stroke-width="2"/><rect x="44" y="114" width="9" height="9" rx="2" fill="#ffe08a" stroke="${trim}" stroke-width="2"/>`;
+      }
       const hull = c.gold ? '#8a3f1c' : S.hull;
       g += `<path d="M22 130L178 130C170 162 144 178 100 178C56 178 30 162 22 130Z" fill="${hull}" stroke="${L}" stroke-width="3.5" stroke-linejoin="round"/>`;
       g += `<path d="M26 140C60 145 140 145 174 140" stroke="${c.gold ? '#ffc531' : S.hullDark}" stroke-width="5" fill="none"/>`;
@@ -233,8 +238,8 @@
       }
     }
     out += scaled(c.k, 100, 176, g);
-    out += `<g mask="url(#${sea})"><path d="M0 186Q25 178 50 186T100 186T150 186T200 186V220H0Z" fill="#3aa6e6"/>`;
-    out += `<path d="M30 196Q40 192 50 196M88 202Q98 198 108 202M144 196Q154 192 164 196" stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round" opacity=".8"/></g>`;
+    out += `<g mask="url(#${sea})"><path d="M0 178Q25 170 50 178T100 178T150 178T200 178V220H0Z" fill="#3aa6e6"/>`;
+    out += `<path d="M30 190Q40 186 50 190M88 196Q98 192 108 196M144 190Q154 186 164 190" stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round" opacity=".8"/></g>`;
     return svg('0 0 200 220', out, 'hero');
   }
 
@@ -264,13 +269,11 @@
     dragon: () =>
       svg('0 0 160 160', `<circle cx="80" cy="80" r="76" fill="#fff3d1" opacity=".55"/><circle cx="80" cy="80" r="54" fill="#fff6dc"/>`, 'bg-sun') +
       cloud('bg-cloud1', '#ffffff') + cloud('bg-cloud2', '#fff8ef') +
-      svg('0 0 240 170', `<path d="M0 170L80 52L104 62L118 46L140 60L240 170Z" fill="#c9a0d8"/><path d="M80 52L104 62L118 46L140 60L128 80L110 70L94 82Z" fill="#ff8a5c"/><path d="M110 40C100 28 112 18 104 6M120 36C126 24 118 14 128 4" stroke="#b9a7c4" stroke-width="6" fill="none" stroke-linecap="round" opacity=".7"/>`, 'bg-volcano') +
       `<svg class="bg-hills" viewBox="0 0 390 260" preserveAspectRatio="none" aria-hidden="true"><path d="M0 70C70 30 140 40 210 74C270 104 330 60 390 50V260H0Z" fill="#a8e2b6"/><path d="M0 130C80 96 150 104 220 138C290 170 340 120 390 116V260H0Z" fill="#74cc98"/><path d="M0 190C90 160 190 170 270 196C320 212 360 200 390 190V260H0Z" fill="#4fb57f"/></svg>`,
     pirate: () =>
       svg('0 0 100 100', `<circle cx="50" cy="50" r="46" fill="#fff6c4" opacity=".6"/><circle cx="50" cy="50" r="32" fill="#ffe680"/>`, 'bg-sun') +
       cloud('bg-cloud1', '#ffffff') + cloud('bg-cloud2', '#f2fbff') +
       svg('0 0 80 30', `<path d="M4 16Q12 6 20 16Q28 6 36 16M46 10Q52 2 58 10Q64 2 70 10" stroke="#2f5d80" stroke-width="3" fill="none" stroke-linecap="round"/>`, 'bg-gulls') +
-      svg('0 0 210 150', `<ellipse cx="110" cy="138" rx="100" ry="22" fill="#ffe0a3"/><path d="M104 132C100 96 112 64 128 40" stroke="#8a5a2b" stroke-width="10" fill="none" stroke-linecap="round"/><path d="M128 40C108 30 86 34 72 50C94 44 110 46 128 40ZM128 40C140 22 164 16 182 24C162 26 146 32 128 40ZM128 40C150 36 172 46 182 64C164 52 146 46 128 40ZM128 40C118 52 112 70 114 88C122 70 126 56 128 40Z" fill="#3fbf6f" stroke="#237a45" stroke-width="2.5" stroke-linejoin="round"/>`, 'bg-island') +
       `<svg class="bg-sea" viewBox="0 0 390 260" preserveAspectRatio="none" aria-hidden="true"><path d="M0 24Q48 8 97 24T195 24T292 24T390 24V260H0Z" fill="#39a9e8"/><path d="M0 70Q48 54 97 70T195 70T292 70T390 70V260H0Z" fill="#2b8fd2"/><path d="M0 130Q48 114 97 130T195 130T292 130T390 130V260H0Z" fill="#1f76b8"/><path d="M30 46Q46 40 62 46M200 90Q216 84 232 90M300 150Q316 144 332 150M90 170Q106 164 122 170" stroke="#d8f2ff" stroke-width="3" fill="none" stroke-linecap="round" opacity=".7"/></svg>`
   };
   U.art.bg = (theme) => (BG[theme] || BG.space)();
