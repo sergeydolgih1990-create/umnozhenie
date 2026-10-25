@@ -23,7 +23,7 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
     } else if (U.STREAM_MODES[pkg.mode]) next = U.gen.stream(pkg, Math.random);
     else keys = U.gen.round(pkg, Math.random);
     stop();
-    const self = p.input === 'keys';
+    const self = U.inputOf(p) === 'keys';
     R = new U.Round(pkg, { keys, next, onShow, onFinish, selfCheck: self });
     ctx = { pkg, self, typed: '', flash: null, saved: !!(opts && opts.saved), startedAt: null, count: 3, cdPaused: false, swipeAt: 0, ghost: ghostFor(pkg, p, self) };
     U.go('round', {}, { replace: ui.screen === 'round' || ui.screen === 'result' });
@@ -425,7 +425,7 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
       ${celebrate ? A.confetti() : ''}
       <div class="result">
         ${ribbon ? `<div class="ribbon">${ribbon}</div>` : ''}
-        <div class="pkg-name">${esc(r.name)}${r.input === 'keys' ? ' · ответы с клавиатуры' : ''}</div>
+        <div class="pkg-name">${esc(r.name)}${U.VOICE_MODE && r.input === 'keys' ? ' · ответы с клавиатуры' : ''}</div>
         <div class="score">${score}</div>
         ${subs.length ? `<div class="sub">${subs.join(' · ')}</div>` : ''}
         <div class="panel earn"><div class="total">+${res.total} ${A.star()}<button class="link-btn help-link" data-act="help">за что звёзды?</button></div>${lines ? `<ul>${lines}</ul>` : ''}</div>

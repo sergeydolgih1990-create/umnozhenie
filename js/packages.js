@@ -13,6 +13,11 @@
     training: { name: 'Работа над ошибками', icon: 'target', color: '#ff5c8a', hint: 'трудные примеры из последних раундов, звёзды двойные' }
   };
   U.FIXED_MODES = { teacher: 1, accel: 1, dictation: 1 };
+
+  // Ответ вслух с кнопками «Верно / Неверно» у взрослого. Сергей, 25.10.2026: пока убран из интерфейса,
+  // код оставлен — чтобы вернуть, поставить true. Пока выключено, все раунды идут с клавиатуры ребёнка.
+  U.VOICE_MODE = false;
+  U.inputOf = (p) => (U.VOICE_MODE && !(p && p.input === 'keys') ? 'voice' : 'keys');
   U.STREAM_MODES = { minute: 1, streak: 1 };
 
   const BASE = { std: true, tables: [2, 3, 4, 5, 6, 7, 8, 9], voice: false, hideTime: false };

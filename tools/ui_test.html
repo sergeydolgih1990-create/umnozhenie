@@ -29,6 +29,7 @@
   async function startRound(id) { click(`[data-act="play"][data-id="${id}"]`); await wait(3300); }
   try {
     U.store.useMemory(null);
+    U.VOICE_MODE = true; // скрытый пока вариант «вслух, кнопки взрослого» тоже должен работать
     U.uiInit();
     U.render();
     check('старт: экран игроков', U.ui.screen === 'players');
@@ -212,7 +213,11 @@
     U.go('home', {}, { reset: true });
     click('[data-act="packages"]');
     click('[data-act="setInput"][data-v="keys"]');
-    check('переключатель «Сам» запоминается у игрока', U.player().input === 'keys' && $('.input-toggle .on').dataset.v === 'keys');
+    check('переключатель «клавиатура» запоминается у игрока', U.player().input === 'keys' && $('.input-toggle .on').dataset.v === 'keys');
+    click('[data-act="setInput"][data-v="voice"]');
+    U.VOICE_MODE = false; // как в выложенной версии: кнопок взрослого нет
+    U.refresh();
+    check('без варианта «вслух»: переключателя нет', !$('.input-toggle') && U.inputOf(U.player()) === 'keys');
     const typeAns = async (n) => { String(n).split('').forEach((dg) => click(`[data-act="key"][data-v="${dg}"]`)); click('[data-act="key"][data-v="ok"]'); await wait(200); };
     await startRound('school');
     check('сам: вместо кнопок — клавиатура', !!$('.keypad') && !$('[data-act="markOk"]') && document.querySelectorAll('.keypad .key').length === 12);
@@ -253,6 +258,11 @@
     check('описание: 15 уровней', document.querySelectorAll('.help-table.levels tbody tr').length === 15);
     check('описание: 5 ступеней героя', document.querySelectorAll('.help-hero').length === 5);
     check('описание: числа из настроек', new RegExp('быстрее ' + U.score.FAST_MS / 1000 + ' секунд').test(document.body.textContent));
+    check('описание: без упоминания кнопок взрослого', !/Верно» или «Неверно/.test(document.getElementById('view').textContent));
+    U.go('playerForm', {}, { form: { name: 'Б', avatar: '🐼', theme: 'pirate' } });
+    check('карточка игрока без выбора способа ответа', !$('.input-toggle'));
+    U.go('charts', { pkg: 'all', metric: 'pct' });
+    check('графики без фильтра «вслух/клавиатура»', !$('[data-act="chartInp"]'));
   } catch (e) {
     fail++;
     log.push('ОШИБКА СЦЕНАРИЯ: ' + e.message + ' @ ' + (e.stack || '').split('\n')[1]);

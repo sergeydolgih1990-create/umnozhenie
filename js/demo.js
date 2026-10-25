@@ -52,10 +52,12 @@
           const lim = U.FIXED_MODES[pkg.mode] ? pkg.interval * 1000 - 200 : pkg.mode === 'limit' || pkg.mode === 'streak' ? pkg.interval * 1000 : 99999;
           const tt = Math.min(t, lim);
           at += U.FIXED_MODES[pkg.mode] ? pkg.interval * 1000 : tt;
-          items.push({ k, m, t: pkg.mode === 'dictation' ? null : tt, at: U.FIXED_MODES[pkg.mode] ? at - pkg.interval * 1000 + tt : at });
+          const it = { k, m, t: pkg.mode === 'dictation' && U.VOICE_MODE ? null : tt, at: U.FIXED_MODES[pkg.mode] ? at - pkg.interval * 1000 + tt : at };
+          if (!U.VOICE_MODE) it.a = m ? U.gen.parse(k).ans : U.gen.parse(k).ans + (rnd() < 0.5 ? 1 : -1) * (1 + Math.floor(rnd() * 3));
+          items.push(it);
           if (pkg.mode === 'streak' && m === 0) stop = true;
         });
-        const round = { id: p.id + 'r' + i, player: p.id, pkg: pkg.id, name: pkg.name, mode: pkg.mode, cfg: U.pkgSnapshot(pkg), startedAt: when,
+        const round = { id: p.id + 'r' + i, player: p.id, pkg: pkg.id, name: pkg.name, mode: pkg.mode, input: U.VOICE_MODE ? 'voice' : 'keys', cfg: U.pkgSnapshot(pkg), startedAt: when,
           durationMs: pkg.mode === 'minute' ? 60000 : at, paused: false, items };
         U.score.commit(d, p, round, when);
       }

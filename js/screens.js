@@ -63,8 +63,8 @@
         <label class="field"><span>Имя</span><input class="inp" data-f="name" maxlength="16" value="${esc(f.name)}" placeholder="Как зовут?" autocomplete="off"></label>
         <div class="field"><span>Картинка</span><div class="avatar-grid">${av}</div></div>
         <div class="field"><span>Тема и герой</span><div class="theme-pick">${th}</div></div>
-        <div class="field"><span>Способ ответа</span>${inputToggle(f.input || 'voice', 'fsetInput')}
-          <span class="muted">Можно поменять и перед игрой — на экране выбора пакета.</span></div>
+        ${U.VOICE_MODE ? `<div class="field"><span>Способ ответа</span>${inputToggle(f.input || 'voice', 'fsetInput')}
+          <span class="muted">Можно поменять и перед игрой — на экране выбора пакета.</span></div>` : ''}
         ${f.error ? `<div class="err">${f.error}</div>` : ''}
       </div>
       <button class="btn btn-primary btn-big" data-act="savePlayer">${ic('check')}Сохранить</button>
@@ -78,9 +78,9 @@
     ui.themeOverride = null;
     if (ui.params.id) {
       const p = d.players.find((x) => x.id === ui.params.id);
-      Object.assign(p, { name, avatar: f.avatar, theme: f.theme, input: f.input || 'voice' });
+      Object.assign(p, { name, avatar: f.avatar, theme: f.theme, input: f.input || U.inputOf(p) });
     } else {
-      const p = { id: U.store.uid(), name, avatar: f.avatar, theme: f.theme, input: f.input || 'voice', xp: 0, stars: 0, quests: [], blitzDate: null, createdAt: Date.now() };
+      const p = { id: U.store.uid(), name, avatar: f.avatar, theme: f.theme, input: f.input || U.inputOf(null), xp: 0, stars: 0, quests: [], blitzDate: null, createdAt: Date.now() };
       d.players.push(p);
       d.current = p.id;
     }
@@ -140,7 +140,7 @@
 
   /* ---------- Выбор пакета ---------- */
   U.screens.packages = function () {
-    const p = U.player(), d = D(), input = p.input === 'keys' ? 'keys' : 'voice';
+    const p = U.player(), d = D(), input = U.inputOf(p);
     const card = (pk) => {
       const M = U.MODES[pk.mode];
       const best = pk.mode === 'training' ? null : S.records(d, pk.id, p.id, { input, cfg: U.pkgSnapshot(pk) })[0];
@@ -156,7 +156,7 @@
         <span class="pkg-go">${ic('play')}</span></button>`;
     };
     return `<div class="screen scroll">${topbar('Во что играем?', { right: starsPill(p) })}
-      ${inputToggle(input)}
+      ${U.VOICE_MODE ? inputToggle(input) : ''}
       <div class="pkg-list">${U.STD_PACKAGES.map(card).join('')}</div>
       ${d.packages.length ? `<h2 class="sec">Свои пакеты</h2><div class="pkg-list">${d.packages.map(card).join('')}</div>` : ''}
       <button class="btn btn-light" data-act="newPkg">${ic('plus')}Свой раунд</button>
@@ -317,7 +317,7 @@
         return `<button class="lrow" data-act="recDetail" data-id="${pk.id}" data-input="${input}"><span class="medal g1">${ic('trophy')}</span>
           <span class="grow"><b>${esc(pk.name)}</b><span>${S.resultText(best)} · ${F.date(best.startedAt)}${owner ? ' · ' + esc(owner) : ''}</span></span>${ic('play')}</button>`;
       }).join('');
-      body = inputToggle(input, 'recInput') + (rows ? `<div class="card rows">${rows}</div>` : `<div class="card empty">${input === 'keys' ? 'Рекордов с клавиатуры пока нет' : 'Рекордов пока нет'} — сыграйте первый раунд.</div>`);
+      body = (U.VOICE_MODE ? inputToggle(input, 'recInput') : '') + (rows ? `<div class="card rows">${rows}</div>` : `<div class="card empty">${input === 'keys' ? 'Рекордов с клавиатуры пока нет' : 'Рекордов пока нет'} — сыграйте первый раунд.</div>`);
       if (familyOn()) body = '<div class="soft" style="color:var(--on-bg-soft)">Семейный рейтинг: лучшие результаты всех игроков</div>' + body;
     } else {
       const mine = d.rounds.filter((r) => r.player === p.id).sort((a, b) => b.startedAt - a.startedAt);
@@ -328,13 +328,13 @@
         .map((c) => `<button class="chip${filter === c[0] ? ' on' : ''}" data-act="histFilter" data-v="${c[0]}">${esc(c[1])}</button>`).join('');
       const list = mine.filter((r) => filter === 'all' || (r.pkg || 'once') === filter).slice(0, 200);
       const rows = list.map((r) => `<button class="lrow" data-act="roundDetail" data-id="${r.id}">
-          <span class="grow"><b>${esc(r.name)}${r.record ? '<span class="badge rec">рекорд</span>' : ''}${r.input === 'keys' ? '<span class="badge">клавиатура</span>' : ''}${r.paused ? '<span class="badge">пауза</span>' : ''}</b>
+          <span class="grow"><b>${esc(r.name)}${r.record ? '<span class="badge rec">рекорд</span>' : ''}${U.VOICE_MODE ? (r.input === 'keys' ? '<span class="badge">клавиатура</span>' : '') : (r.input !== 'keys' ? '<span class="badge">вслух</span>' : '')}${r.paused ? '<span class="badge">пауза</span>' : ''}</b>
           <span>${F.dt(r.startedAt)} · ${S.resultText(r)}</span></span><span class="gain-s">+${r.stars || 0}${starSm()}</span></button>`).join('');
       body = `<div class="chips">${chips}</div>` + (rows ? `<div class="card rows">${rows}</div>` : '<div class="card empty">Раундов ещё не было.</div>');
     }
     return `<div class="screen scroll">${topbar(tab === 'rec' ? 'Рекорды' : 'История', { right: starsPill(p) })}${toggle}${body}</div>`;
   };
-  function recInput(pr) { return pr.input || (U.player().input === 'keys' ? 'keys' : 'voice'); }
+  function recInput(pr) { return (U.VOICE_MODE && pr.input) || U.inputOf(U.player()); }
   U.actions.records = () => U.go('records', { tab: 'rec' });
   U.actions.recTab = (ds) => { ui.params.tab = ds.v; U.refresh(); };
   U.actions.recInput = (ds) => { ui.params.input = ds.v; U.refresh(); };
@@ -348,7 +348,7 @@
       return `<button class="lrow" data-act="roundDetail" data-id="${r.id}"><span class="medal${i < 3 ? ' g' + (i + 1) : ''}">${i + 1}</span>
         <span class="grow"><b>${S.resultText(r)}</b><span>${F.dt(r.startedAt)}${owner}</span></span></button>`;
     }).join('');
-    return `<div class="screen scroll">${topbar(esc(pk.name), { sub: (pk.mode ? U.pkgDesc(pk) : '') + (recInput(pr) === 'keys' ? ' · ответ на клавиатуре' : ' · ответ вслух') })}
+    return `<div class="screen scroll">${topbar(esc(pk.name), { sub: (pk.mode ? U.pkgDesc(pk) : '') + (U.VOICE_MODE ? (recInput(pr) === 'keys' ? ' · ответ на клавиатуре' : ' · ответ вслух') : '') })}
       <div class="card rows">${rows || '<div class="empty">Результатов пока нет</div>'}</div></div>`;
   };
   U.actions.roundDetail = (ds) => U.go('roundDetail', { id: ds.id });
@@ -382,7 +382,7 @@
   const LOWER_BETTER = { errors: 1, time: 1, avg: 1 };
   U.screens.charts = function (pr) {
     const p = U.player(), d = D();
-    const pkgSel = pr.pkg || 'all', metric = pr.metric || 'pct', byDay = !!pr.byDay, inp = pr.inp || 'all';
+    const pkgSel = pr.pkg || 'all', metric = pr.metric || 'pct', byDay = !!pr.byDay, inp = U.VOICE_MODE ? pr.inp || 'all' : 'all';
     const mine = d.rounds.filter((r) => r.player === p.id && (inp === 'all' || (r.input || 'voice') === inp)).sort((a, b) => a.startedAt - b.startedAt);
     const inputs = [['all', 'Все ответы'], ['voice', 'Вслух'], ['keys', 'Клавиатура']]
       .map((c) => `<button class="chip${inp === c[0] ? ' on' : ''}" data-act="chartInp" data-v="${c[0]}">${c[1]}</button>`).join('');
@@ -408,7 +408,7 @@
     return `<div class="screen scroll">${topbar('Графики', { right: starsPill(p) })}
       <div class="chips">${chips}</div>
       <div class="chips">${metrics}</div>
-      <div class="chips">${inputs}</div>
+      ${U.VOICE_MODE ? `<div class="chips">${inputs}</div>` : ''}
       <div class="card chart-card">${chart}<div class="legend chart-legend">${legend}</div></div>
       ${stats ? `<div class="card">${stats}</div>` : ''}
       <div class="toggle"><button class="${!byDay ? 'on' : ''}" data-act="chartDay" data-v="0">По раундам</button><button class="${byDay ? 'on' : ''}" data-act="chartDay" data-v="1">По дням</button></div>
