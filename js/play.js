@@ -263,7 +263,7 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
     html += card;
 
     if (ctx.self) {
-      html += keypadHTML(counting || paused) + `<div class="swipe-hint">${touch() ? 'Набери ответ и нажми ✓' : 'цифры · Enter — ответить · Backspace — стереть · пробел — пауза'}</div>`;
+      html += keypadHTML(counting || paused) + `<div class="swipe-hint">${touch() ? 'Набери ответ — он засчитается сам' : 'цифры — ответ засчитается сам · Backspace — стереть · пробел — пауза'}</div>`;
     } else if (mode === 'dictation') {
       html += `<div class="swipe-hint">Ответы пишем на листке — проверим после диктанта</div>`;
     } else {
@@ -284,11 +284,12 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
     return lead + done.slice(-10).concat([`<b class="typed-in">${ctx.typed || '&nbsp;'}</b>`]).join(', ');
   }
   function keypadHTML(off) {
-    const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'del', '0', 'ok'];
+    // ноль — широкий, как на калькуляторе; справа «стереть»
+    const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'del'];
     return `<div class="keypad">${keys.map((k) => {
-      const cls = k === 'ok' ? ' key-ok' : k === 'del' ? ' key-del' : '';
-      const label = k === 'ok' ? 'Ответить' : k === 'del' ? 'Стереть' : k;
-      const face = k === 'ok' ? ic('check') : k === 'del' ? '⌫' : k;
+      const cls = k === '0' ? ' key-wide' : k === 'del' ? ' key-del' : '';
+      const label = k === 'del' ? 'Стереть' : k;
+      const face = k === 'del' ? '⌫' : k;
       return `<button class="key${cls}" data-act="key" data-v="${k}" aria-label="${label}"${off ? ' disabled' : ''}>${face}</button>`;
     }).join('')}</div>`;
   }
@@ -324,12 +325,16 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
     }
   };
 
-  // Набор ответа на экранной клавиатуре
+  // Набор ответа на экранной клавиатуре. Кнопки «Ответить» нет: как только набрано столько цифр,
+  // сколько в правильном ответе, ответ засчитан и сразу следующий пример (Сергей, 25.10.2026).
+  // Пока цифр меньше — последнюю можно стереть.
   P.type = function (v) {
-    if (!R || !ctx || !ctx.self || ctx.count > 0 || ctx.cdPaused || R.paused || R.finished) return;
-    if (v === 'ok') { submit(); return; }
+    if (!R || !ctx || !ctx.self || ctx.count > 0 || ctx.cdPaused || R.paused || R.finished || !R.cur()) return;
     if (v === 'del') ctx.typed = ctx.typed.slice(0, -1);
-    else if (ctx.typed.length < 3) ctx.typed = ctx.typed === '0' ? v : ctx.typed + v;
+    else if (/^\d$/.test(v)) {
+      ctx.typed = ctx.typed === '0' ? v : ctx.typed + v;          // ответов с нуля впереди не бывает
+      if (ctx.typed.length >= String(U.gen.parse(R.cur().k).ans).length) { submit(); return; }
+    } else return;
     R.draft = ctx.typed ? Number(ctx.typed) : null;
     const box = document.querySelector('.example-card .typed'), line = document.querySelector('.answers-line .typed-in');
     if (box) { box.textContent = ctx.typed || '?'; box.classList.toggle('empty', !ctx.typed); }
@@ -382,7 +387,6 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
     if (ctx && ctx.self) {
       if (/^\d$/.test(e.key)) P.type(e.key);
       else if (e.key === 'Backspace') P.type('del');
-      else if (e.key === 'Enter') P.type('ok');
       else if (e.key === ' ' || e.key === 'Spacebar') P.togglePause();
       else if (e.key === 'Escape') P.askAbort();
       else return;

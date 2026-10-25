@@ -472,8 +472,7 @@ svg.chart { width: 100%; height: auto; display: block; }
 }
 .key:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0, 0, 0, .16); }
 .key:disabled { opacity: .5; }
-.key-ok { background: var(--ok); color: #fff; box-shadow: 0 5px 0 var(--ok-dark); }
-.key-ok .ic { width: 34px; height: 34px; }
+.key-wide { grid-column: span 2; }
 .key-del { background: #eef0f7; color: var(--ink-soft); }
 .selfmode .example { font-size: max(48px, min(30cqw, 12cqh, 200px)); }
 .selfmode .eq { font-size: max(28px, min(13cqw, 7.5cqh, 90px)); margin-top: 6px; color: var(--ink); }

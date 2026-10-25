@@ -234,25 +234,43 @@
     U.VOICE_MODE = false; // как в выложенной версии: кнопок взрослого нет
     U.refresh();
     check('без варианта «вслух»: переключателя нет', !$('.input-toggle') && U.inputOf(U.player()) === 'keys');
-    const typeAns = async (n) => { String(n).split('').forEach((dg) => click(`[data-act="key"][data-v="${dg}"]`)); click('[data-act="key"][data-v="ok"]'); await wait(200); };
+    // ответ засчитывается сам, как только набрано столько цифр, сколько в правильном ответе — кнопки «Ответить» нет
+    const ansOf = () => U.gen.parse(R().cur().k).ans;
+    const wrongOf = (a) => (a % 10 === 9 ? a - 1 : a + 1);              // неверный ответ той же длины
+    const typeAns = async (n) => { String(n).split('').forEach((dg) => click(`[data-act="key"][data-v="${dg}"]`)); await wait(200); };
+    const until = async (want) => { for (let g = 0; g < 16 && U.ui.screen === 'round' && !want(ansOf()); g++) await typeAns(ansOf()); };
     await startRound('school');
-    check('сам: вместо кнопок — клавиатура', !!$('.keypad') && !$('[data-act="markOk"]') && document.querySelectorAll('.keypad .key').length === 12);
-    const a0 = U.gen.parse(R().cur().k).ans, card0 = $('.example-card');
-    String(a0).split('').forEach((dg) => click(`[data-act="key"][data-v="${dg}"]`));
+    check('сам: клавиатура — цифры и «стереть», кнопки «Ответить» нет', !!$('.keypad') && !$('[data-act="markOk"]') && document.querySelectorAll('.keypad .key').length === 11 && !$('[data-v="ok"]') && !!$('[data-v="del"]'));
+    await until((a) => a >= 10);
+    const n0 = R().items.length, a2 = ansOf(), card0 = $('.example-card');
+    click(`[data-act="key"][data-v="${String(a2)[0]}"]`);
+    check('двузначный ответ: после первой цифры ждём вторую, набранное видно', R().items.length === n0 && $('.typed').textContent === String(a2)[0]);
     check('набор цифр не перерисовывает экран — движения не сбиваются', $('.example-card') === card0);
-    check('сам: набранное видно в примере', $('.typed').textContent === String(a0));
-    click('[data-act="key"][data-v="ok"]'); await wait(150);
-    check('сам: верный ответ — сразу следующий и вспышка «Верно»', R().items.length === 2 && R().items[0].m === 1 && /Верно/.test($('.example-card').textContent));
+    click('[data-act="key"][data-v="del"]');
+    check('первую цифру можно стереть', R().items.length === n0 && $('.typed').textContent === '?');
+    await typeAns(a2);
+    check('две цифры — ответ засчитан, сразу следующий и «Верно»', R().items.length === n0 + 1 && R().items[n0 - 1].m === 1 && /Верно/.test($('.example-card').textContent));
     check('дорожка: герой подпрыгнул, искорки', !!$('.trail .trail-hero.hop') && !!$('.example-card .sparks') && !!$('.trail-goal svg'));
-    await typeAns(U.gen.parse(R().cur().k).ans + 1);
-    check('сам: неверный ответ — ошибка, дальше', R().items[1].m === 0 && R().items[1].a !== undefined && R().items.length === 3);
+    await until((a) => a >= 10);
+    const nK = R().items.length;
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: String(ansOf())[0], bubbles: true }));
+    check('сам: цифры с клавиатуры ПК', $('.typed').textContent.length === 1 && R().items.length === nK);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true }));
+    check('сам: Backspace стирает', $('.typed').textContent === '?');
+    await typeAns(ansOf());
+    await until((a) => a < 10);
+    const n1 = R().items.length;
+    click(`[data-act="key"][data-v="${ansOf()}"]`); await wait(150);
+    check('однозначный ответ засчитан первой же цифрой', R().items.length === n1 + 1 && R().items[n1 - 1].m === 1);
+    const nW = R().items.length;
+    await typeAns(wrongOf(ansOf()));
+    check('сам: неверный ответ — ошибка, дальше', R().items[nW - 1].m === 0 && R().items[nW - 1].a !== undefined && R().items.length === nW + 1);
     check('дорожка: герой трясётся, карточка вздрагивает', !!$('.trail-hero.oops') && !!$('.example-card.flash-bad') && !$('.sparks'));
+    const nT = R().items.length;
     await wait(7300);
-    check('сам: не набрал за 7 с — «не успел», дальше', R().items[2].m === 0 && R().items[2].late === 1 && R().items.length === 4);
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: String(U.gen.parse(R().cur().k).ans).slice(0, 1), bubbles: true }));
-    check('сам: цифры с клавиатуры ПК', $('.typed').textContent.length === 1);
+    check('сам: не набрал за 7 с — «не успел», дальше', R().items[nT - 1].m === 0 && R().items[nT - 1].late === 1 && R().items.length === nT + 1);
     let sawCombo = '';
-    for (let i = 0; i < 20 && U.ui.screen === 'round'; i++) { await typeAns(U.gen.parse(R().cur().k).ans); if ($('.combo')) sawCombo += $('.combo').textContent + ' '; }
+    for (let i = 0; i < 20 && U.ui.screen === 'round'; i++) { await typeAns(ansOf()); if ($('.combo')) sawCombo += $('.combo').textContent + ' '; }
     check('5 верных подряд — «Серия ×5!»', /Серия ×5!/.test(sawCombo), sawCombo);
     check('сам: после раунда сразу итог, без проверки', U.ui.screen === 'result');
     const kr = D().rounds[D().rounds.length - 1];
@@ -266,8 +284,8 @@
     click('[data-act="packages"]');
     await startRound('dictation');
     check('диктант сам: пример не виден, клавиатура есть', /№ 1/.test($('.example').textContent) && !!$('.keypad'));
-    await typeAns(U.gen.parse(R().cur().k).ans);
-    await typeAns(U.gen.parse(R().cur().k).ans + 1);
+    await typeAns(ansOf());
+    await typeAns(wrongOf(ansOf()));
     check('диктант сам: ответы через запятую', /\d+,\s*\d+/.test($('.answers-line').textContent));
     check('диктант сам: без вспышки верно/ошибка', !$('.card-badge'));
     U.play.askAbort(); click('[data-act="modalYes"]'); await wait(300);
@@ -294,12 +312,12 @@
     check('условия в темпе 1-го уровня', /до\s15 с/.test(document.getElementById('view').textContent) && /за\s5\sмин,/.test(document.getElementById('view').textContent) && /уложись во время/.test(document.getElementById('view').textContent));
     click('[data-act="exam"][data-id="school"]'); await wait(3300);
     check('испытание идёт в темпе уровня', R().pkg.interval === 15 && /Цель/.test($('.goal').textContent));
-    for (let i = 0; i < 16 && U.ui.screen === 'round'; i++) await typeAns(U.gen.parse(R().cur().k).ans + (i === 5 ? 1 : 0));
+    for (let i = 0; i < 16 && U.ui.screen === 'round'; i++) await typeAns(i === 5 ? wrongOf(ansOf()) : ansOf());
     check('с ошибкой — «Не пройдено: 1 ошибка»', U.ui.screen === 'result' && /Не пройдено: 1 ошибка/.test($('.exam-verdict').textContent));
     check('неудача: тучка над героем, подбадривание, без салюта', !!$('.screen.mood-lose') && !!$('.hero-mini.sad .rain-wrap') && /Всего одна ошибка/.test($('.cheer-line').textContent) && !$('.confetti-fall') && !$('.ribbon'));
     check('после неудачи — «Ещё раз» и «К испытаниям»', !!$('[data-act="again"]') && !!$('[data-act="exams"]'));
     click('[data-act="again"]'); await wait(3300);
-    for (let i = 0; i < 16 && U.ui.screen === 'round'; i++) await typeAns(U.gen.parse(R().cur().k).ans);
+    for (let i = 0; i < 16 && U.ui.screen === 'round'; i++) await typeAns(ansOf());
     check('без ошибок — «Испытание пройдено!»', /Испытание пройдено/.test($('.ribbon').textContent) && /1 из 7/.test(document.getElementById('view').textContent));
     check('за испытание +15 звёзд', /Испытание «Школьный блиц» пройдено/.test($('.earn').textContent));
     check('пройдено: победа и вспышка нового сегмента', !!$('.screen.mood-win') && !!$('.confetti-fall') && document.querySelectorAll('.hero-mini .exam-segs i.new').length === 1);
@@ -313,7 +331,7 @@
     check('блок раскрывается, пройденное можно повторить', $('.done-block').open && !!$('.done-row[data-act="exam"][data-id="school"]'));
     click('[data-act="exam"][data-id="dictation"]'); await wait(3300);
     check('диктант-испытание: по 17 с (темп + 2)', R().pkg.interval === 17);
-    for (let i = 0; i < 16 && U.ui.screen === 'round'; i++) await typeAns(U.gen.parse(R().cur().k).ans);
+    for (let i = 0; i < 16 && U.ui.screen === 'round'; i++) await typeAns(ansOf());
     check('все 7 — «Новый уровень!» и темп 13 с', /Новый уровень/.test($('.ribbon').textContent) && /Открыт уровень 2: темп 13 с/.test($('.exam-verdict').textContent));
     check('новый уровень — новый облик героя', /Герой вырос: Яйцо треснуло!/.test($('.hero-mini').textContent));
     check('новый уровень: герой выпрыгивает', !!$('.hero-mini.level-up') && !!$('.hero-mini.cheer'));
