@@ -36,23 +36,31 @@
   const sparkles = (c) => sparkle(32, 46, 9, c) + sparkle(168, 56, 11, c) + sparkle(24, 136, 6, c) + sparkle(178, 142, 7, c);
 
   /* ---------- Космос: ракета ---------- */
+  // 10 обликов — по одному на уровень: картон → ракета → ускорители → крылья → золотой звездолёт
   const ROCKET = [null,
     { k: 0.62, body: '#efcd98', nose: '#d39a58', fin: '#d39a58', frame: '#b07c43', glass: '#d3f0ff', line: '#6b4823', tape: true },
-    { k: 0.74, body: '#ffffff', nose: '#ff5d5d', fin: '#ff5d5d', frame: '#9aa8d6', glass: '#7fd4ff', line: '#2a2f5a' },
-    { k: 0.85, body: '#f3f5ff', nose: '#ffb020', fin: '#4f7cff', frame: '#4f7cff', glass: '#7fd4ff', line: '#2a2f5a', boost: '#dfe5ff', stripe: '#4f7cff', win2: true },
-    { k: 0.93, body: '#eef3ff', nose: '#8b5cf6', fin: '#8b5cf6', frame: '#ffb020', glass: '#9be8ff', line: '#2a2f5a', boost: '#e3dbff', stripe: '#ffb020', win2: true, wings: true, antenna: true },
-    { k: 1, body: '#fff3c9', nose: '#ff8a1a', fin: '#ff5d5d', frame: '#ffb020', glass: '#b6f0ff', line: '#5a3200', boost: '#ffd36b', stripe: '#ff5d5d', win2: true, wings: true, antenna: true, glow: true, star: true }
+    { k: 0.67, body: '#efcd98', nose: '#ff5d5d', fin: '#ff5d5d', frame: '#b07c43', glass: '#d3f0ff', line: '#6b4823', tape: true, pilot: true, flag: true },
+    { k: 0.72, body: '#ffffff', nose: '#ff5d5d', fin: '#ff5d5d', frame: '#9aa8d6', glass: '#7fd4ff', line: '#2a2f5a', pilot: true },
+    { k: 0.77, body: '#ffffff', nose: '#ffb020', fin: '#4f7cff', frame: '#4f7cff', glass: '#7fd4ff', line: '#2a2f5a', pilot: true, stripe: '#4f7cff', win2: true },
+    { k: 0.82, body: '#f3f5ff', nose: '#ffb020', fin: '#4f7cff', frame: '#4f7cff', glass: '#7fd4ff', line: '#2a2f5a', pilot: true, boost: '#dfe5ff', stripe: '#4f7cff', win2: true },
+    { k: 0.86, body: '#effbf8', nose: '#14b8a6', fin: '#14b8a6', frame: '#ffb020', glass: '#9be8ff', line: '#1f3a4a', pilot: true, boost: '#d5f5ef', stripe: '#14b8a6', win2: true, dish: true },
+    { k: 0.9, body: '#eef3ff', nose: '#8b5cf6', fin: '#8b5cf6', frame: '#ffb020', glass: '#9be8ff', line: '#2a2f5a', pilot: true, boost: '#e3dbff', stripe: '#ffb020', win2: true, wings: true, antenna: true },
+    { k: 0.94, body: '#f2f6ff', nose: '#ff5d5d', fin: '#4f7cff', frame: '#ffb020', glass: '#b6f0ff', line: '#2a2f5a', pilot: true, boost: '#dbe6ff', stripe: '#ff5d5d', win2: true, wings: true, antenna: true, lights: true },
+    { k: 0.97, body: '#fff3c9', nose: '#ff8a1a', fin: '#ff5d5d', frame: '#ffb020', glass: '#b6f0ff', line: '#5a3200', pilot: true, boost: '#ffd36b', stripe: '#ff5d5d', win2: true, wings: true, antenna: true, star: true, lights: true },
+    { k: 1, body: '#fff3c9', nose: '#ff8a1a', fin: '#ff5d5d', frame: '#ffb020', glass: '#b6f0ff', line: '#5a3200', pilot: true, boost: '#ffd36b', stripe: '#ff5d5d', win2: true, wings: true, antenna: true, star: true, lights: true, glow: true }
   ];
 
   function rocket(s) {
-    const c = ROCKET[s], L = c.line, big = s >= 4;
+    const c = ROCKET[s], L = c.line, big = c.k >= 0.9;
     const body = 'M100 18C126 40 132 74 128 150L72 150C68 74 74 40 100 18Z';
     const clip = nid('rb');
     let g = `<defs><clipPath id="${clip}"><path d="${body}"/></clipPath></defs>`;
     g += `<g class="h-flame"><path d="M84 160Q100 ${big ? 218 : 204} 116 160Z" fill="#ff8a3d"/><path d="M91 160Q100 ${big ? 200 : 188} 109 160Z" fill="#ffd23f"/></g>`;
-    const fin = (c.wings ? '<path d="M74 98C50 112 36 140 36 170L74 150Z"' : '<path d="M74 112C60 120 52 138 50 164L74 148Z"') +
+    const fin = (c.wings ? '<path d="M74 98C50 112 36 140 36 170L74 150Z"' : c.boost ? '<path d="M58 134L43 162L58 156Z"' : '<path d="M74 112C60 120 52 138 50 164L74 148Z"') +
       ` fill="${c.fin}" stroke="${L}" stroke-width="3" stroke-linejoin="round"/>`;
     g += fin + mirror(fin);
+    // огоньки на концах крыльев
+    if (c.lights) { const l = `<circle class="h-twinkle" cx="39" cy="166" r="5" fill="#7cf0b0" stroke="${L}" stroke-width="2"/>`; g += l + mirror(l); }
     if (c.boost) {
       const b = `<path class="h-flame" d="M56 156Q62.5 ${big ? 188 : 178} 69 156Z" fill="#ff8a3d"/>` +
         `<rect x="55" y="100" width="15" height="56" rx="7" fill="${c.boost}" stroke="${L}" stroke-width="3"/>` +
@@ -61,6 +69,8 @@
     }
     g += `<path d="M82 148L118 148L113 162L87 162Z" fill="#5b6178" stroke="${L}" stroke-width="3" stroke-linejoin="round"/>`;
     if (c.antenna) g += `<path d="M100 22V7" stroke="${L}" stroke-width="3" stroke-linecap="round"/><circle cx="100" cy="6" r="4.5" fill="#ff5d5d" stroke="${L}" stroke-width="2"/>`;
+    if (c.flag) g += `<path d="M100 22V3" stroke="${L}" stroke-width="3" stroke-linecap="round"/><path class="h-flag" d="M101 3L118 8L101 13Z" fill="#ff5d5d" stroke="${L}" stroke-width="2" stroke-linejoin="round"/>`;
+    if (c.dish) g += `<path d="M100 22V12" stroke="${L}" stroke-width="3" stroke-linecap="round"/><path d="M86 4Q100 22 114 4Z" fill="#d5f5ef" stroke="${L}" stroke-width="2.5" stroke-linejoin="round"/><circle cx="100" cy="9" r="2.5" fill="#ff5d5d"/>`;
     g += `<path d="${body}" fill="${c.body}"/>`;
     g += `<g clip-path="url(#${clip})"><rect x="60" y="10" width="80" height="45" fill="${c.nose}"/><path d="M60 55H140" stroke="${L}" stroke-width="3"/>`;
     if (c.stripe) g += `<rect x="60" y="124" width="80" height="10" fill="${c.stripe}"/>`;
@@ -70,8 +80,8 @@
     const win = (cy, r, inner) => `<circle cx="100" cy="${cy}" r="${r + 5}" fill="${c.frame}" stroke="${L}" stroke-width="3"/>` +
       `<circle cx="100" cy="${cy}" r="${r}" fill="${c.glass}"/>` + (inner || '') +
       `<path d="M${100 - r * 0.6} ${cy - r * 0.1}A${r * 0.62} ${r * 0.62} 0 0 1 ${100 - r * 0.05} ${cy - r * 0.62}" stroke="#fff" stroke-width="${r > 8 ? 3 : 2}" fill="none" stroke-linecap="round"/>`;
-    // с второй ступени в иллюминаторе появляется пилот
-    const pilot = s >= 2 ? '<circle cx="100" cy="89" r="7.5" fill="#ffd9b8"/><circle cx="97.3" cy="88" r="1.4" fill="#1b1b2f"/><circle cx="102.7" cy="88" r="1.4" fill="#1b1b2f"/><path d="M97.3 91.6Q100 93.8 102.7 91.6" stroke="#1b1b2f" stroke-width="1.3" fill="none" stroke-linecap="round"/><circle cx="95.6" cy="90.6" r="1.2" fill="#ff9fb2"/><circle cx="104.4" cy="90.6" r="1.2" fill="#ff9fb2"/>' : '';
+    // со 2-го облика в иллюминаторе пилот
+    const pilot = c.pilot ? '<circle cx="100" cy="89" r="7.5" fill="#ffd9b8"/><circle cx="97.3" cy="88" r="1.4" fill="#1b1b2f"/><circle cx="102.7" cy="88" r="1.4" fill="#1b1b2f"/><path d="M97.3 91.6Q100 93.8 102.7 91.6" stroke="#1b1b2f" stroke-width="1.3" fill="none" stroke-linecap="round"/><circle cx="95.6" cy="90.6" r="1.2" fill="#ff9fb2"/><circle cx="104.4" cy="90.6" r="1.2" fill="#ff9fb2"/>' : '';
     g += win(86, 11, pilot);
     if (c.win2) g += win(111, 5.5);
     if (c.star) g += star5(100, 38, 9, '#ffe066', L);
@@ -85,12 +95,18 @@
 
   /* ---------- Драконы: дракончик ---------- */
   const D = { body: '#4cc38a', dark: '#2a9c66', belly: '#ffe7a0', snout: '#83dcae', horn: '#fff1c4', wing: '#93e4bb', cheek: '#ff9fb2', line: '#1d5a3d', shell: '#fff4da', shellLine: '#b58a4a' };
+  // 10 обликов: яйцо → треснуло → вылупился → малыш в скорлупке → крылышки → шарфик → дракон → огненный хвост → корона → великий
   const DRAGON = [null,
     { k: 0.8, egg: true },
+    { k: 0.84, egg: true, cracked: true },
     { k: 0.86, hatch: true },
-    { k: 0.9, wings: 'small' },
-    { k: 0.96, wings: 'big', bigHorns: true },
-    { k: 1, wings: 'big', bigHorns: true, crown: true, goldWings: true, glow: true }
+    { k: 0.84, cap: true },
+    { k: 0.88, wings: 'small' },
+    { k: 0.91, wings: 'small', scarf: true },
+    { k: 0.94, wings: 'big', bigHorns: true, scarf: true },
+    { k: 0.96, wings: 'big', bigHorns: true, scarf: true, fireTail: true },
+    { k: 0.98, wings: 'big', bigHorns: true, scarf: true, fireTail: true, crown: true },
+    { k: 1, wings: 'big', bigHorns: true, scarf: true, fireTail: true, crown: true, goldWings: true, glow: true }
   ];
 
   function dragonHead(cy, bigHorns) {
@@ -126,6 +142,9 @@
       g += `<g class="h-wobble"><path d="M100 38C140 38 156 112 150 142C144 172 124 188 100 188C76 188 56 172 50 142C44 112 60 38 100 38Z" fill="${D.shell}" stroke="${D.shellLine}" stroke-width="3.5"/>`;
       g += `<ellipse cx="82" cy="92" rx="10" ry="8" fill="#a6e6c4"/><ellipse cx="120" cy="122" rx="13" ry="10" fill="#a6e6c4"/><ellipse cx="88" cy="152" rx="9" ry="7" fill="#a6e6c4"/><ellipse cx="122" cy="76" rx="7" ry="6" fill="#a6e6c4"/>`;
       g += `<path d="M70 84C72 68 80 58 88 52" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" opacity=".9"/>`;
+      // треснувшее яйцо: трещина по кругу и глазки в дырочке
+      if (c.cracked) g += '<path d="M54 112L68 104L78 116L90 104L102 116L114 104L126 116L138 106L148 112" stroke="#8a6a3a" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '<path d="M85 108Q100 92 116 108Q112 121 100 121Q88 121 85 108Z" fill="#3a2a1a" stroke="#8a6a3a" stroke-width="2.5"/><g class="h-eye"><circle cx="95" cy="110" r="4.5" fill="#fff"/><circle cx="96" cy="111" r="2.4" fill="#1b1b2f"/><circle cx="106" cy="110" r="4.5" fill="#fff"/><circle cx="107" cy="111" r="2.4" fill="#1b1b2f"/></g>';
       g += '<path class="h-fx h-crack" d="M84 70L95 84L88 96L101 108L94 120" stroke="#8a6a3a" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>';
       g += `<path d="M30 186Q100 210 170 186Q162 210 100 214Q38 210 30 186Z" fill="#c88a4a" stroke="#7a4f22" stroke-width="3" stroke-linejoin="round"/>`;
       g += `<path d="M46 196L72 204M86 208L118 204M130 204L156 194" stroke="#7a4f22" stroke-width="2.5" stroke-linecap="round"/>`;
@@ -143,22 +162,28 @@
       g += paw + mirror(paw);
       return svg('0 0 200 220', scaled(c.k, 100, 200, g), 'hero st' + s);
     }
+    const tp = c.fireTail ? 'M128 172C160 188 184 184 186 166' : 'M128 172C158 180 174 162 170 138';
     let g = '<g class="h-tail">';
-    g += `<path d="M128 172C158 180 174 162 170 138" stroke="${L}" stroke-width="18" fill="none" stroke-linecap="round"/>`;
-    g += `<path d="M128 172C158 180 174 162 170 138" stroke="${D.body}" stroke-width="12" fill="none" stroke-linecap="round"/>`;
-    g += `<path d="M160 130L184 128L172 150Z" fill="${D.dark}" stroke="${L}" stroke-width="3" stroke-linejoin="round"/></g>`;
+    g += `<path d="${tp}" stroke="${L}" stroke-width="18" fill="none" stroke-linecap="round"/>`;
+    g += `<path d="${tp}" stroke="${D.body}" stroke-width="12" fill="none" stroke-linecap="round"/>`;
+    g += c.fireTail
+      ? `<g class="h-flick"><path d="M177 168C172 150 184 142 188 126C193 142 204 150 197 168C194 176 181 177 177 168Z" fill="#ff8a3d" stroke="#d4621a" stroke-width="2"/><path d="M183 166C181 156 186 151 188 142C191 151 196 156 193 166C191 171 185 171 183 166Z" fill="#ffd23f"/></g></g>`
+      : `<path d="M160 130L184 128L172 150Z" fill="${D.dark}" stroke="${L}" stroke-width="3" stroke-linejoin="round"/></g>`;
     const wingFill = c.goldWings ? '#ffd36b' : D.wing, veins = c.goldWings ? '#e08a00' : D.dark;
-    const w = '<g class="h-wing">' + (c.wings === 'big'
+    const w = !c.wings ? '' : '<g class="h-wing">' + (c.wings === 'big'
       ? `<path d="M72 128C46 88 14 92 8 122C24 120 28 134 40 134C38 148 52 152 60 146C62 154 68 154 72 148Z" fill="${wingFill}" stroke="${L}" stroke-width="3" stroke-linejoin="round"/><path d="M70 130L22 112M68 136L40 134M68 142L60 146" stroke="${veins}" stroke-width="2.5" stroke-linecap="round"/>`
       : `<path d="M72 134C54 112 36 114 32 130C42 128 46 138 54 138C54 146 64 148 72 144Z" fill="${D.wing}" stroke="${L}" stroke-width="3" stroke-linejoin="round"/><path d="M70 136L42 126M68 141L56 138" stroke="${D.dark}" stroke-width="2.5" stroke-linecap="round"/>`) + '</g>';
-    g += w + mirror(w);
+    if (w) g = w + mirror(w) + g;
     g += `<g class="h-breathe"><ellipse cx="100" cy="154" rx="36" ry="32" fill="${D.body}" stroke="${L}" stroke-width="3.5"/>`;
     g += `<ellipse cx="100" cy="160" rx="22" ry="22" fill="${D.belly}"/>`;
     g += `<path d="M84 150Q100 156 116 150M81 162Q100 168 119 162M85 174Q100 179 115 174" stroke="#e5c56b" stroke-width="2.5" fill="none" stroke-linecap="round"/></g>`;
     const foot = `<ellipse cx="80" cy="184" rx="13" ry="8" fill="${D.body}" stroke="${L}" stroke-width="3"/><path d="M73 187v-3M80 188v-3M87 187v-3" stroke="${L}" stroke-width="2" stroke-linecap="round"/>`;
     const arm = `<ellipse cx="71" cy="154" rx="9" ry="13" fill="${D.body}" stroke="${L}" stroke-width="3" transform="rotate(25 71 154)"/>`;
     g += foot + mirror(foot) + arm + mirror(arm);
+    if (c.scarf) g += `<path d="M70 124Q100 138 130 124L132 133Q100 148 68 133Z" fill="#ff5d5d" stroke="${L}" stroke-width="2.5" stroke-linejoin="round"/><path d="M110 134L120 158L104 155Z" fill="#ff5d5d" stroke="${L}" stroke-width="2.5" stroke-linejoin="round"/>`;
     g += dragonHead(98, c.bigHorns) + puff(116, 118, c.glow);
+    // малыш ещё носит скорлупку как шапочку
+    if (c.cap) g += `<path d="M70 76C72 50 128 50 130 76L121 68L112 78L100 67L88 78L79 68Z" fill="${D.shell}" stroke="${D.shellLine}" stroke-width="3" stroke-linejoin="round" transform="translate(0 -4) rotate(-10 100 66)"/>`;
     if (c.crown) g += `<path d="M82 72L85 50L94 62L100 44L106 62L115 50L118 72Z" fill="#ffc531" stroke="#8a5a00" stroke-width="3" stroke-linejoin="round"/><circle cx="100" cy="64" r="3.5" fill="#ff5d7a"/><circle cx="88" cy="66" r="2.5" fill="#4f7cff"/><circle cx="112" cy="66" r="2.5" fill="#4f7cff"/>`;
     let out = c.glow ? aura('#ffd34d') + `<g class="h-twinkle">${sparkles('#fffbe0')}</g>` : '';
     out += `<g class="h-float-s">${scaled(c.k, 100, 192, g)}</g>`;
@@ -167,18 +192,24 @@
 
   /* ---------- Пираты: корабль ---------- */
   const S = { hull: '#b86b34', hullDark: '#8a4a1f', sail: '#fff7e6', mast: '#7a4a24', line: '#3d2410', rope: '#ecd9a8' };
+  // 10 обликов: плот → лодка на вёслах → парусная лодка → шлюп → шхуна → бригантина → бриг → корвет → фрегат → золотой галеон
   const SHIP = [null,
-    { k: 0.82, raft: true },
-    { k: 0.9, boat: true },
-    { k: 0.95, masts: 2, gaff: true },
-    { k: 1, masts: 2, square: true, ports: 3, roger: true, castle: true },
-    { k: 1, masts: 3, square: true, ports: 4, roger: true, castle: true, gold: true, glow: true }
+    { k: 0.8, raft: true },
+    { k: 0.84, boat: true, oars: true },
+    { k: 0.88, boat: true },
+    { k: 0.9, masts: 1, gaff: true },
+    { k: 0.93, masts: 2, gaff: true },
+    { k: 0.95, masts: 2, rig: ['gaff', 'square'], ports: 2 },
+    { k: 0.97, masts: 2, ports: 3, roger: true, castle: true },
+    { k: 0.98, masts: 3, ports: 3, roger: true, castle: true },
+    { k: 1, masts: 3, ports: 4, roger: true, castle: true, band: true },
+    { k: 1, masts: 3, ports: 4, roger: true, castle: true, gold: true, glow: true }
   ];
 
-  function squareSail(x, y1, y2, w, band) {
+  function squareSail(x, y1, y2, w, band) {   // band — цвет полосы на парусе или пусто
     const l = x - w / 2, r = x + w / 2, ym = (y1 + y2) / 2;
     let s = `<path d="M${l} ${y1}Q${x} ${y1 - 4} ${r} ${y1}Q${r + 5} ${ym} ${r} ${y2}Q${x} ${y2 + 7} ${l} ${y2}Q${l - 5} ${ym} ${l} ${y1}Z" fill="${S.sail}" stroke="${S.line}" stroke-width="2.5" stroke-linejoin="round"/>`;
-    if (band) s += `<path d="M${l - 2} ${ym + 2}Q${x} ${ym + 6} ${r + 2} ${ym + 2}" stroke="#ff5d5d" stroke-width="6" fill="none"/>`;
+    if (band) s += `<path d="M${l - 2} ${ym + 2}Q${x} ${ym + 6} ${r + 2} ${ym + 2}" stroke="${band}" stroke-width="6" fill="none"/>`;
     s += `<path d="M${l - 5} ${y1}H${r + 5}" stroke="${S.mast}" stroke-width="4" stroke-linecap="round"/>`;
     return s;
   }
@@ -188,7 +219,7 @@
     // Море — овальным пятном с мягкими краями, чтобы на фоне темы не было прямоугольника
     const sea = nid('sea');
     let out = `<defs><radialGradient id="${sea}g" gradientUnits="userSpaceOnUse" cx="100" cy="186" r="100" gradientTransform="translate(0 186) scale(1 .42) translate(0 -186)"><stop offset=".72" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient><mask id="${sea}"><rect width="200" height="220" fill="url(#${sea}g)"/></mask></defs>`;
-    if (c.glow) out += aura('#ffe27a') + `<g class="h-twinkle">${sparkles('#ffffff')}</g>`;
+    if (c.glow) out += aura('#ffc531') + `<g class="h-twinkle">${sparkles('#ffffff')}</g>`;
     out += `<g mask="url(#${sea})"><path class="h-wave1" d="M-50 166Q-25 156 0 166T50 166T100 166T150 166T200 166T250 166V220H-50Z" fill="#8fd3f6"/></g>`;
     let g = '';
     if (c.raft) {
@@ -201,27 +232,37 @@
       g += `<rect x="117" y="104" width="12" height="10" fill="#f2c9a0" stroke="${L}" stroke-width="2" transform="rotate(6 123 109)"/>`;
     }
     if (c.boat) {
-      g += `<rect x="97" y="56" width="6" height="94" rx="3" fill="${S.mast}" stroke="${L}" stroke-width="2.5"/>`;
-      g += `<path class="h-flag" d="M101 44L124 50L101 56Z" fill="#ff5d5d" stroke="${L}" stroke-width="2" stroke-linejoin="round"/>`;
-      g += `<path d="M106 62L106 136L154 136Z" fill="${S.sail}" stroke="${L}" stroke-width="3" stroke-linejoin="round"/>`;
-      g += `<path d="M94 74L94 136L60 136Z" fill="${S.sail}" stroke="${L}" stroke-width="3" stroke-linejoin="round"/>`;
+      if (c.oars) {
+        // лодка на вёслах: флажок на корме, вёсла в воду
+        g += `<path d="M52 140V108" stroke="${S.mast}" stroke-width="4" stroke-linecap="round"/><path class="h-flag" d="M52 108L70 113L52 118Z" fill="#ff5d5d" stroke="${L}" stroke-width="2" stroke-linejoin="round"/>`;
+        const oar = `<path d="M82 144L28 164" stroke="${S.mast}" stroke-width="5" stroke-linecap="round"/><ellipse cx="22" cy="166" rx="11" ry="5.5" fill="#c48a4e" stroke="${L}" stroke-width="2" transform="rotate(-20 22 166)"/>`;
+        g += oar + mirror(oar);
+      } else {
+        g += `<rect x="97" y="56" width="6" height="94" rx="3" fill="${S.mast}" stroke="${L}" stroke-width="2.5"/>`;
+        g += `<path class="h-flag" d="M101 44L124 50L101 56Z" fill="#ff5d5d" stroke="${L}" stroke-width="2" stroke-linejoin="round"/>`;
+        g += `<path d="M106 62L106 136L154 136Z" fill="${S.sail}" stroke="${L}" stroke-width="3" stroke-linejoin="round"/>`;
+        g += `<path d="M94 74L94 136L60 136Z" fill="${S.sail}" stroke="${L}" stroke-width="3" stroke-linejoin="round"/>`;
+      }
       g += `<path d="M40 138L160 138C154 164 132 178 100 178C68 178 46 164 40 138Z" fill="${S.hull}" stroke="${L}" stroke-width="3.5" stroke-linejoin="round"/>`;
       g += `<path d="M46 150C70 153 130 153 154 150" stroke="${S.hullDark}" stroke-width="5" fill="none"/>`;
     }
     if (c.masts) {
-      const xs = c.masts === 2 ? [76, 124] : [56, 100, 144];
-      const w1 = c.masts === 2 ? 50 : 40, w2 = c.masts === 2 ? 40 : 32;
-      if (c.gold) g += `<circle cx="22" cy="104" r="7" fill="#ffd34d" stroke="${L}" stroke-width="2"/>`;
+      const xs = c.masts === 1 ? [110] : c.masts === 2 ? [76, 124] : [56, 100, 144];
+      const w1 = c.masts === 3 ? 40 : 50, w2 = c.masts === 3 ? 32 : 40;
+      if (c.gold) g += `<path d="M28 100V84H16" stroke="${S.mast}" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M16 84V88" stroke="${L}" stroke-width="2"/><circle cx="16" cy="94" r="6" fill="#ffd34d" stroke="${L}" stroke-width="2"/>`;
       g += `<path d="M176 128L198 104" stroke="${S.mast}" stroke-width="5" stroke-linecap="round"/>`;
       xs.forEach((x, i) => {
         const top = c.masts === 3 && i === 1 ? 22 : 34;
         g += `<rect x="${x - 3}" y="${top}" width="6" height="${132 - top}" rx="3" fill="${S.mast}" stroke="${L}" stroke-width="2.5"/>`;
-        if (c.gaff) {
-          g += `<path d="M${x + 4} 44L${x + 38} 56L${x + 38} 120L${x + 4} 124Z" fill="${S.sail}" stroke="${L}" stroke-width="2.5" stroke-linejoin="round"/>`;
+        const gaff = c.rig ? c.rig[i] === 'gaff' : c.gaff;
+        if (gaff) {
+          // косой парус — позади мачты (нос корабля справа); у передней мачты шлюпа и шхуны ещё кливер к бушприту
+          g += `<path d="M${x - 4} 44L${x - 38} 56L${x - 38} 120L${x - 4} 124Z" fill="${S.sail}" stroke="${L}" stroke-width="2.5" stroke-linejoin="round"/>`;
+          if (!c.rig && i === xs.length - 1) g += `<path d="M${x + 4} 42L${x + 4} 124L192 110Z" fill="${S.sail}" stroke="${L}" stroke-width="2.5" stroke-linejoin="round"/>`;
           g += `<path class="h-flag" d="M${x} ${top}L${x + 20} ${top + 6}L${x} ${top + 12}Z" fill="#ff5d5d" stroke="${L}" stroke-width="2" stroke-linejoin="round"/>`;
         } else {
           g += squareSail(x, top + 14, top + 42, w2, false);
-          g += squareSail(x, top + 50, 120, w1, c.gold);
+          g += squareSail(x, top + 50, 120, w1, c.gold ? '#ffc531' : c.band ? '#ff5d5d' : '');
           const flagX = x + 3, isRoger = c.roger && i === (c.masts === 3 ? 1 : 0);
           if (isRoger) {
             g += `<g class="h-flag"><rect x="${flagX}" y="${top - 16}" width="26" height="16" fill="#1f1f2e" stroke="${L}" stroke-width="2"/>`;
@@ -234,12 +275,12 @@
       if (c.castle) {
         const trim = c.gold ? '#ffc531' : '#e0a15e';
         g += `<path d="M20 108V100M30 108V100M40 108V100M50 108V100M60 108V100M18 100H62" stroke="${L}" stroke-width="2.5" stroke-linecap="round"/>`;
-        g += `<path d="M24 132L22 108L60 108L60 132Z" fill="${c.gold ? '#8a3f1c' : S.hull}" stroke="${L}" stroke-width="3" stroke-linejoin="round"/>`;
+        g += `<path d="M24 132L22 108L60 108L60 132Z" fill="${c.gold ? '#d39a2a' : S.hull}" stroke="${L}" stroke-width="3" stroke-linejoin="round"/>`;
         g += `<rect x="29" y="114" width="9" height="9" rx="2" fill="#ffe08a" stroke="${trim}" stroke-width="2"/><rect x="44" y="114" width="9" height="9" rx="2" fill="#ffe08a" stroke="${trim}" stroke-width="2"/>`;
       }
-      const hull = c.gold ? '#8a3f1c' : S.hull;
+      const hull = c.gold ? '#d39a2a' : S.hull;
       g += `<path d="M22 130L178 130C170 162 144 178 100 178C56 178 30 162 22 130Z" fill="${hull}" stroke="${L}" stroke-width="3.5" stroke-linejoin="round"/>`;
-      g += `<path d="M26 140C60 145 140 145 174 140" stroke="${c.gold ? '#ffc531' : S.hullDark}" stroke-width="5" fill="none"/>`;
+      g += `<path d="M26 140C60 145 140 145 174 140" stroke="${c.gold ? '#fff0a8' : S.hullDark}" stroke-width="${c.gold ? 7 : 5}" fill="none"/>`;
       if (c.ports) {
         const step = 84 / (c.ports - 1);
         for (let i = 0; i < c.ports; i++) g += `<circle cx="${58 + step * i}" cy="154" r="5.5" fill="#2b1a0c" stroke="${c.gold ? '#ffc531' : '#e0a15e'}" stroke-width="2.5"/>`;
@@ -258,7 +299,7 @@
 
   U.art = U.art || {};
   U.art.hero = function (theme, stage) {
-    stage = Math.max(1, Math.min(5, stage | 0));
+    stage = Math.max(1, Math.min(10, stage | 0));
     if (theme === 'dragon') return dragon(stage);
     if (theme === 'pirate') return ship(stage);
     return rocket(stage);
@@ -300,7 +341,7 @@
   U.art.goal = (theme) => svg('0 0 32 32', GOALS[theme] || GOALS.space, 'goal-ic');
 
   // Тучка с дождиком — когда раунд не удался
-  U.art.rainCloud = () => svg('0 0 120 90', '<g class="rain">' +
+  U.art.rainCloud = () => svg('0 0 136 90', '<g class="rain">' +
     [24, 44, 64, 84, 34, 74].map((x, i) => `<path class="drop" style="animation-delay:${(i * 0.23).toFixed(2)}s" d="M${x} 52Q${x - 3} 60 ${x} 64Q${x + 3} 60 ${x} 52Z" fill="#7fb6e6"/>`).join('') +
     '</g><path d="M22 50C8 50 6 32 20 30C20 16 38 10 48 20C54 6 80 4 88 20C100 12 118 18 116 32C130 34 128 50 114 50Z" fill="#c8d0e0" stroke="#9aa6bd" stroke-width="2.5"/>' +
     '<path d="M48 36Q52 33 56 36M70 36Q74 33 78 36M54 44Q63 40 72 44" stroke="#6b7690" stroke-width="2.5" fill="none" stroke-linecap="round"/>', 'rain-cloud');

@@ -4,7 +4,9 @@
 (function (U) {
   'use strict';
 
-  const PACE = [10, 9, 8, 7, 6, 5, 4.5, 4, 3.5, 3];          // секунд на пример на уровнях 1–10
+  // секунд на пример на уровнях 1–10: мягкий старт с 15 с, школьные 5 с — на 9-м, финиш 4 с (Сергей, 25.10.2026)
+  const PACE = [15, 13, 11, 10, 9, 8, 7, 6, 5, 4];
+  const SCHOOL_PACE = 5;
   const SERIES = [10, 12, 15, 18, 20, 25, 30, 35, 40, 50];   // длина серии для «До первой ошибки»
   const MAX = PACE.length;
   const DICT_EXTRA = 2;                                      // голосу нужно время прочитать пример
@@ -96,5 +98,7 @@
     return out;
   }
 
-  U.levels = { PACE, SERIES, MAX, EXAMS, byId, pace, terms, describe, pkgFor, check, level, progress, apply, fmtLong };
+  const SCHOOL_LEVEL = PACE.indexOf(SCHOOL_PACE) + 1;      // с какого уровня темп как в школе
+
+  U.levels = { PACE, SERIES, MAX, EXAMS, SCHOOL_PACE, SCHOOL_LEVEL, byId, pace, terms, describe, pkgFor, check, level, progress, apply, fmtLong };
 })(window.U = window.U || {});

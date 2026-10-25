@@ -7,6 +7,7 @@
   U.actions = {};
   U.after = {};
 
+  U.nb = (s) => String(s).replace(/ /g, '\u00a0');
   U.esc = (s) => String(s === undefined || s === null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const pad = (n) => String(n).padStart(2, '0');
   U.fmt = {

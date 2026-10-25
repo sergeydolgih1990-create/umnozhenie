@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ru">
+<head><meta charset="utf-8"><title>Облики героев</title><link rel="stylesheet" href="../css/app.css">
+<style>
+  /* Лист всех обликов героя: 3 темы × 10 уровней. Снимок: tools/shoot_heroes.py */
+  body { margin: 0; background: #2a2a2a; font-family: var(--font); }
+  .row { display: grid; grid-template-columns: repeat(10, 150px); gap: 6px; padding: 6px; }
+  .cell { border-radius: 14px; padding: 6px 4px 8px; text-align: center; background: linear-gradient(180deg, var(--bg1), var(--bg2)); color: var(--on-bg); }
+  .cell svg.hero { width: 140px; height: 154px; display: block; margin: 0 auto; }
+  .cell b { display: block; font-size: 13px; font-weight: 900; }
+  .cell span { font-size: 11px; font-weight: 800; color: var(--on-bg-soft); }
+</style></head>
+<body>
+<div id="sheet"></div>
+<script src="../js/themes.js"></script>
+<script src="../js/art.js"></script>
+<script>
+  document.getElementById('sheet').innerHTML = ['space', 'dragon', 'pirate'].map((t) => {
+    const T = U.THEMES[t];
+    return `<div class="row">${T.hero.map((name, i) => `<div class="cell" data-theme="${t}">${U.art.hero(t, i + 1)}<b>${i + 1}. ${name}</b><span>${T.titles[i]}</span></div>`).join('')}</div>`;
+  }).join('');
+</script>
+</body>
+</html>

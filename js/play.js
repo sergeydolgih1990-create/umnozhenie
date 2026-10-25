@@ -571,7 +571,7 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
         ${examPanel}
         <div class="panel earn"><div class="total"><span>+${num(res.total)}</span>${A.star()}<button class="link-btn help-link" data-act="help">за что звёзды?</button></div>${lines ? `<ul>${lines}</ul>` : ''}</div>
         <div class="${heroCls}">${mood === 'lose' ? `<div class="rain-wrap">${A.rainCloud()}</div>` : ''}${A.hero(p.theme, L.st)}
-          <div class="grow"><b style="font-size:17px">Уровень ${L.lv} · ${T.titles[L.st - 1]}</b>
+          <div class="grow"><b style="font-size:17px">Уровень ${L.lv} · ${U.nb(T.titles[L.st - 1])}</b>
             <div class="soft">${status}</div>${U.examSegs(L, ex && ex.newPass && !levelUp ? ex.exam.id : null)}</div>
         </div>
         ${uniq.length ? `<div class="again">Ошибки${uniq.map((x) => `<span class="chip-ex">${x}</span>`).join('')}</div>` : ''}

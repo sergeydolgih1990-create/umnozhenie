@@ -588,6 +588,8 @@ svg.hero .h-crack { stroke-dasharray: 80; stroke-dashoffset: 80; }
 .alive .h-wave1 { animation: hWave1 3.6s ease-in-out infinite alternate; }
 .alive .h-wave2 { animation: hWave2 2.8s ease-in-out infinite alternate; }
 .alive .h-flag { animation: hFlag .7s ease-in-out infinite alternate; transform-origin: 0% 50%; }
+.alive .h-flick { animation: hFlick .32s ease-in-out infinite alternate; transform-origin: 50% 100%; transform-box: fill-box; }
+@keyframes hFlick { from { transform: scale(.9, .86); } to { transform: scale(1.06, 1.12); } }
 @keyframes hFloat { 50% { transform: translateY(-7px); } }
 @keyframes hFlame { from { transform: scaleY(.82); } to { transform: scaleY(1.14); } }
 @keyframes hTwinkle { 50% { opacity: .35; } }
@@ -790,7 +792,7 @@ svg.hero .h-crack { stroke-dasharray: 80; stroke-dashoffset: 80; }
 @keyframes flyRocket { 0% { opacity: 1; transform: translate(-60px, 470px) rotate(50deg); } 100% { opacity: 1; transform: translate(450px, -60px) rotate(50deg); } }
 @keyframes rise { 0% { opacity: 0; transform: translateY(0) scale(.6); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-330px) scale(1.1); } }
 @keyframes coin { 0% { opacity: 1; transform: translateY(-40px) scaleX(1); } 25% { transform: translateY(125px) scaleX(.15); } 50% { transform: translateY(290px) scaleX(1); } 75% { transform: translateY(455px) scaleX(.15); } 100% { opacity: 1; transform: translateY(620px) scaleX(1); } }
-.rain-wrap { position: absolute; left: 8px; top: -10px; width: 70px; z-index: 2; pointer-events: none; animation: cloudIn .7s ease-out .4s backwards; }
+.rain-wrap { position: absolute; left: 6px; top: 2px; width: 66px; z-index: 2; pointer-events: none; animation: cloudIn .7s ease-out .4s backwards; }
 .rain-wrap svg { width: 100%; height: auto; display: block; }
 .rain-cloud .drop { animation: drop 1.1s linear infinite; }
 @keyframes drop { 0% { opacity: 0; transform: translateY(-4px); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(24px); } }

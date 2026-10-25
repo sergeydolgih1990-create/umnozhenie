@@ -277,7 +277,8 @@
     click('.topbar [data-act="help"]');
     check('описание наград открывается со звёзд', U.ui.screen === 'help');
     check('описание: таблица 10 уровней с темпом', document.querySelectorAll('.help-table.paces tbody tr').length === 10);
-    check('описание: 5 ступеней героя', document.querySelectorAll('.help-hero').length === 5);
+    check('описание: 10 обликов героя', document.querySelectorAll('.help-hero').length === 10);
+    check('описание: темп от 15 до 4 с, школьный на 9-м', /на 1-м уровне 15 секунд, на 9-м — 5 секунд, как в школе,\s+на 10-м — 4 секунды/.test(document.getElementById('view').textContent));
     check('описание: числа из настроек', new RegExp('быстрее ' + U.score.FAST_MS / 1000 + ' секунд').test(document.body.textContent));
     check('описание: без упоминания кнопок взрослого', !/Верно» или «Неверно/.test(document.getElementById('view').textContent));
     U.go('playerForm', {}, { form: { name: 'Б', avatar: '🐼', theme: 'pirate' } });
@@ -290,9 +291,9 @@
     check('главный экран: уровень 1, испытания 0 из 7', /Уровень 1/.test($('.level-card').textContent) && /0 из 7/.test($('.level-card').textContent));
     click('.level-card');
     check('экран испытаний: 7 испытаний', U.ui.screen === 'exams' && document.querySelectorAll('[data-act="exam"]').length === 7);
-    check('условия в темпе 1-го уровня', /до\s10 с/.test(document.getElementById('view').textContent) && /3\sмин\s20\sс/.test(document.getElementById('view').textContent) && /уложись во время/.test(document.getElementById('view').textContent));
+    check('условия в темпе 1-го уровня', /до\s15 с/.test(document.getElementById('view').textContent) && /за\s5\sмин,/.test(document.getElementById('view').textContent) && /уложись во время/.test(document.getElementById('view').textContent));
     click('[data-act="exam"][data-id="school"]'); await wait(3300);
-    check('испытание идёт в темпе уровня', R().pkg.interval === 10 && /Цель/.test($('.goal').textContent));
+    check('испытание идёт в темпе уровня', R().pkg.interval === 15 && /Цель/.test($('.goal').textContent));
     for (let i = 0; i < 16 && U.ui.screen === 'round'; i++) await typeAns(U.gen.parse(R().cur().k).ans + (i === 5 ? 1 : 0));
     check('с ошибкой — «Не пройдено: 1 ошибка»', U.ui.screen === 'result' && /Не пройдено: 1 ошибка/.test($('.exam-verdict').textContent));
     check('неудача: тучка над героем, подбадривание, без салюта', !!$('.screen.mood-lose') && !!$('.hero-mini.sad .rain-wrap') && /Всего одна ошибка/.test($('.cheer-line').textContent) && !$('.confetti-fall') && !$('.ribbon'));
@@ -311,13 +312,14 @@
     $('.done-block summary').click();
     check('блок раскрывается, пройденное можно повторить', $('.done-block').open && !!$('.done-row[data-act="exam"][data-id="school"]'));
     click('[data-act="exam"][data-id="dictation"]'); await wait(3300);
-    check('диктант-испытание: по 12 с (темп + 2)', R().pkg.interval === 12);
+    check('диктант-испытание: по 17 с (темп + 2)', R().pkg.interval === 17);
     for (let i = 0; i < 16 && U.ui.screen === 'round'; i++) await typeAns(U.gen.parse(R().cur().k).ans);
-    check('все 7 — «Новый уровень!» и темп 9 с', /Новый уровень/.test($('.ribbon').textContent) && /Открыт уровень 2: темп 9 с/.test($('.exam-verdict').textContent));
+    check('все 7 — «Новый уровень!» и темп 13 с', /Новый уровень/.test($('.ribbon').textContent) && /Открыт уровень 2: темп 13 с/.test($('.exam-verdict').textContent));
+    check('новый уровень — новый облик героя', /Герой вырос: Яйцо треснуло!/.test($('.hero-mini').textContent));
     check('новый уровень: герой выпрыгивает', !!$('.hero-mini.level-up') && !!$('.hero-mini.cheer'));
     check('уровень игрока — 2', U.levels.level(U.player()) === 2);
     click('[data-act="exams"]');
-    check('испытания 2-го уровня: по 9 с, ни одно не пройдено', /9 секунд на пример/.test($('.panel h3').textContent) && !$('.done-block') && document.querySelectorAll('.pkg-card').length === 7);
+    check('испытания 2-го уровня: по 13 с, ни одно не пройдено', /13 секунд на пример/.test($('.panel h3').textContent) && !$('.done-block') && document.querySelectorAll('.pkg-card').length === 7);
     U.go('home', {}, { reset: true });
     check('главный экран: уровень 2', /Уровень 2/.test($('.level-card').textContent));
   } catch (e) {

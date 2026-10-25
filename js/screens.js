@@ -19,7 +19,7 @@
   // Уровень игрока и испытания текущего уровня
   const levelInfo = (p) => {
     const lv = U.levels.level(p), pr = U.levels.progress(p, lv);
-    return { lv, st: p && p.master ? 5 : U.stageOf(lv), passed: pr.passed, of: pr.of, done: pr.done, pace: U.levels.pace(lv), master: !!(p && p.master) };
+    return { lv, st: p && p.master ? U.STAGES : U.stageOf(lv), passed: pr.passed, of: pr.of, done: pr.done, pace: U.levels.pace(lv), master: !!(p && p.master) };
   };
   // Полоска из 7 сегментов: какие испытания уровня пройдены; fresh — только что пройденное, на итоге оно вспыхивает
   const examSegs = (L, fresh) => `<div class="exam-segs">${U.levels.EXAMS.map((e, i) => `<i class="${L.done[e.id] || L.master ? 'ok' : ''}${e.id === fresh ? ' new' : ''}" style="--i:${i}"></i>`).join('')}</div>`;
@@ -40,7 +40,7 @@
       const L = levelInfo(p);
       return `<button class="player-card alive" data-theme="${p.theme}" data-act="pickPlayer" data-id="${p.id}">
         ${A.hero(p.theme, L.st)}<span class="pc-name"><span>${p.avatar}</span>${esc(p.name)}</span>
-        <span class="pc-sub">Уровень ${L.lv} · ${U.THEMES[p.theme].titles[L.st - 1]}</span></button>`;
+        <span class="pc-sub">Уровень ${L.lv} · ${U.nb(U.THEMES[p.theme].titles[L.st - 1])}</span></button>`;
     }).join('');
     return `<div class="screen scroll">
       <div class="topbar"><div class="grow who"><div class="name">${ps.length ? 'Кто играет?' : 'Блиц по таблице умножения'}</div>
@@ -154,7 +154,7 @@
   // Подсказки по делу вперемешку с фразами героя; каждое касание — следующая
   function heroTips(p) {
     const d = D(), Lv = U.levels, L = levelInfo(p), lv = L.lv, out = [], q = S.quest(d, p, Date.now());
-    const say = PHRASES[p.theme === 'dragon' && L.st === 1 ? 'egg' : p.theme] || PHRASES.space;
+    const say = PHRASES[p.theme === 'dragon' && L.st <= 2 ? 'egg' : p.theme] || PHRASES.space;
     const left = L.of - L.passed, todo = Lv.EXAMS.find((e) => !L.done[e.id]);
     const ex = left + ' ' + pl(left, 'испытание', 'испытания', 'испытаний');
     out.push(L.master ? 'Все ' + Lv.MAX + ' уровней пройдены — ты настоящий чемпион!'
@@ -172,7 +172,8 @@
     else if (next) out.push('До приза «' + next.name + '» — ещё ' + U.helpStars(next.price - stars) + '.');
     out.push(say[1]);
     const T = Lv.pace(lv);
-    out.push(lv < 6 ? 'С 6-го уровня темп как в школе — 5 секунд на пример.' : T === 5 ? 'Ты отвечаешь в школьном темпе — 5 секунд на пример!' : 'Ты быстрее школьного темпа — ' + U.num(T) + ' с на пример!');
+    const sl = Lv.SCHOOL_LEVEL, sp = Lv.SCHOOL_PACE;
+    out.push(lv < sl ? 'С ' + sl + '-го уровня темп как в школе — ' + sp + ' ' + secWord(sp) + ' на пример.' : T === sp ? 'Ты отвечаешь в школьном темпе — ' + sp + ' ' + secWord(sp) + ' на пример!' : 'Ты быстрее школьного темпа — ' + U.num(T) + ' ' + secWord(T) + ' на пример!');
     const tr = U.STD_PACKAGES.find((x) => x.mode === 'training'), weak = tr ? S.weakList(d, p.id, tr.max).length : 0;
     if (weak) out.push('Трудных примеров: ' + weak + '. Повтори их в «Работе над ошибками» — там звёзды ×2.');
     return out;

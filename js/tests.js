@@ -238,26 +238,30 @@
   /* --- уровни --- */
   /* --- уровни через испытания --- */
   const Lv = U.levels, E = (id) => Lv.byId(id);
-  check('10 уровней, темп от 10 до 3 с', Lv.MAX === 10 && Lv.pace(1) === 10 && Lv.pace(6) === 5 && Lv.pace(10) === 3);
+  check('10 уровней, темп от 15 до 4 с, школьные 5 с — на 9-м', Lv.MAX === 10 && Lv.pace(1) === 15 && Lv.pace(9) === 5 && Lv.pace(10) === 4 && Lv.SCHOOL_LEVEL === 9);
+  check('темп только убывает', Lv.PACE.every((x, i) => i === 0 || x < Lv.PACE[i - 1]));
   check('7 испытаний', Lv.EXAMS.length === 7);
-  check('ступень героя каждые 2 уровня', U.stageOf(1) === 1 && U.stageOf(2) === 1 && U.stageOf(3) === 2 && U.stageOf(10) === 5);
-  check('блиц 1-го уровня: по 10 с', Lv.terms(E('school'), 1).each === 10);
-  check('диктант: темп + 2 с', Lv.terms(E('dictation'), 6).each === 7);
-  check('20 примеров на 1-м уровне — 3:20', Lv.terms(E('mulonly'), 1).totalMs === 200000);
-  check('минута: 6 верных на 1-м, 20 на 10-м', Lv.terms(E('minute'), 1).need === 6 && Lv.terms(E('minute'), 10).need === 20);
+  check('свой облик героя на каждом уровне', U.stageOf(1) === 1 && U.stageOf(2) === 2 && U.stageOf(10) === 10 && U.stageOf(11) === 10);
+  check('у каждой темы 10 обликов и 10 званий', ['space', 'dragon', 'pirate'].every((t) => U.THEMES[t].hero.length === 10 && U.THEMES[t].titles.length === 10));
+  const looks = ['space', 'dragon', 'pirate'].map((t) => { const a = []; for (let s = 1; s <= 10; s++) a.push(U.art.hero(t, s).replace(/id="[^"]+"|url\(#[^)]+\)/g, '')); return a; });
+  check('все 10 обликов в каждой теме разные', looks.every((a) => new Set(a).size === 10));
+  check('блиц 1-го уровня: по 15 с', Lv.terms(E('school'), 1).each === 15);
+  check('диктант: темп + 2 с', Lv.terms(E('dictation'), 6).each === 10);
+  check('20 примеров на 1-м уровне — 5 минут', Lv.terms(E('mulonly'), 1).totalMs === 300000);
+  check('минута: 4 верных на 1-м, 15 на 10-м', Lv.terms(E('minute'), 1).need === 4 && Lv.terms(E('minute'), 10).need === 15);
   check('серия: 10 на 1-м, 50 на 10-м', Lv.terms(E('streak'), 1).series === 10 && Lv.terms(E('streak'), 10).series === 50);
   const pk = Lv.pkgFor(E('school'), 3);
-  check('пакет испытания в темпе уровня', pk.mode === 'teacher' && pk.interval === 8 && pk.mul === 8 && pk.div === 8);
+  check('пакет испытания в темпе уровня', pk.mode === 'teacher' && pk.interval === 11 && pk.mul === 8 && pk.div === 8);
   const mkR = (items, extra) => { const r = Object.assign({ id: 'x' + Math.random(), items, mode: 'teacher', durationMs: 1000, startedAt: mon }, extra || {}); r.s = S.summarize(r); return r; };
   const okItems = (n) => Array.from({ length: n }, (_, i) => ({ k: 'm' + (2 + i % 8) + 'x3', m: 1, t: 1000 }));
   check('блиц без ошибок — пройдено', Lv.check(E('school'), 1, mkR(okItems(16))).passed);
   const oneErr = okItems(16); oneErr[3].m = 0;
   const failed = Lv.check(E('school'), 1, mkR(oneErr));
   check('одна ошибка — не пройдено и сказано почему', !failed.passed && /1 ошибка/.test(failed.why.join()), failed.why);
-  const slowR = Lv.check(E('mulonly'), 1, mkR(okItems(20), { mode: 'fast', durationMs: 201000 }));
-  check('общее время больше лимита — не пройдено', !slowR.passed && /время 3:21 — нужно до 3:20/.test(slowR.why.join()), slowR.why);
+  const slowR = Lv.check(E('mulonly'), 1, mkR(okItems(20), { mode: 'fast', durationMs: 301000 }));
+  check('общее время больше лимита — не пройдено', !slowR.passed && /время 5:01 — нужно до 5:00/.test(slowR.why.join()), slowR.why);
   check('пауза — не засчитано', !Lv.check(E('school'), 1, mkR(okItems(16), { paused: true })).passed);
-  check('минута: мало верных', !Lv.check(E('minute'), 1, mkR(okItems(5), { mode: 'minute' })).passed && Lv.check(E('minute'), 1, mkR(okItems(6), { mode: 'minute' })).passed);
+  check('минута: мало верных', !Lv.check(E('minute'), 1, mkR(okItems(3), { mode: 'minute' })).passed && Lv.check(E('minute'), 1, mkR(okItems(4), { mode: 'minute' })).passed);
   check('серия короче нужной — не пройдено', !Lv.check(E('streak'), 1, mkR(okItems(9), { mode: 'streak' })).passed);
 
   const kid = { id: 'k', stars: 0, xp: 0 };

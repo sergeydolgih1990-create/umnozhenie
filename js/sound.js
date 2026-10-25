@@ -43,7 +43,7 @@
     // Касание героя: ракета взлетает, яйцо стучит, дракон рычит, корабль гудит и стреляет
     tap(theme, stage) {
       if (!on()) return;
-      if (theme === 'dragon' && stage === 1) { tone(520, 0.07, { vol: 0.2 }); tone(520, 0.07, { vol: 0.2, delay: 0.14 }); return; }
+      if (theme === 'dragon' && stage <= 2) { tone(520, 0.07, { vol: 0.2 }); tone(520, 0.07, { vol: 0.2, delay: 0.14 }); return; }
       if (theme === 'dragon') { tone(190, 0.28, { type: 'triangle', vol: 0.22, to: 120 }); tone(700, 0.12, { vol: 0.12, delay: 0.3 }); return; }
       if (theme === 'pirate') { tone(392, 0.16, { vol: 0.18 }); tone(523, 0.3, { vol: 0.18, delay: 0.15 }); tone(130, 0.16, { type: 'triangle', vol: 0.22, delay: 0.45, to: 60 }); return; }
       tone(260, 0.5, { type: 'triangle', vol: 0.18, to: 1040 });

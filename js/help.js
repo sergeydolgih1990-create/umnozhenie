@@ -23,19 +23,20 @@
     let paces = '';
     for (let lv = 1; lv <= Lv.MAX; lv++) {
       const st = U.stageOf(lv), tt = (id) => Lv.terms(Lv.byId(id), lv);
-      paces += `<tr${lv % 2 === 1 ? ' class="stage-start"' : ''}><td class="num">${lv}</td><td>${U.num(Lv.pace(lv))} с</td><td>${S.fmtTime(tt('mulonly').totalMs)}</td><td>${tt('minute').need}</td><td>${tt('streak').series}</td><td>${T.titles[st - 1]}</td></tr>`;
+      paces += `<tr><td class="num">${lv}</td><td>${U.num(Lv.pace(lv))} с</td><td>${S.fmtTime(tt('mulonly').totalMs)}</td><td>${tt('minute').need}</td><td>${tt('streak').series}</td><td>${T.titles[st - 1]}</td></tr>`;
     }
-    const heroes = [1, 2, 3, 4, 5].map((s) => `<div class="help-hero" data-theme="${theme}">${A.hero(theme, s)}<b>${T.hero[s - 1]}</b><span>уровни ${s * 2 - 1}–${s * 2}</span></div>`).join('');
+    const heroes = T.hero.map((name, i) => `<div class="help-hero" data-theme="${theme}">${A.hero(theme, i + 1)}<b>${name}</b><span>уровень ${i + 1}</span></div>`).join('');
     const levels = `<p>Уровень открывают <b>испытания</b>, а не звёзды. У каждого уровня свой <b>темп</b> — сколько секунд даётся
-      на пример: на 1-м уровне 10 секунд, на 6-м — 5 секунд, как в школе, на 10-м — 3 секунды. Чтобы открыть следующий уровень,
+      на пример: на 1-м уровне ${Lv.pace(1)} ${U.secWord(Lv.pace(1))}, на ${Lv.SCHOOL_LEVEL}-м — ${Lv.SCHOOL_PACE} ${U.secWord(Lv.SCHOOL_PACE)}, как в школе,
+      на ${Lv.MAX}-м — ${Lv.pace(Lv.MAX)} ${U.secWord(Lv.pace(Lv.MAX))}. Чтобы открыть следующий уровень,
       нужно пройти все ${Lv.EXAMS.length} испытаний текущего — <b>без единой ошибки</b> и в лимит времени.</p>
       <ul class="help-list terms">${examList}</ul>
       <p class="muted">Испытание можно проходить сколько угодно раз; засчитывается первое удачное на текущем уровне. Если в раунде
       была пауза, испытание не засчитывается. В испытании «До первой ошибки» ошибка сразу заканчивает раунд, в остальных раунд доигрывается
       до конца — это тоже тренировка.</p>
       <table class="help-table paces"><thead><tr><th>Ур.</th><th>Темп</th><th>20 примеров за</th><th>Минута: верных</th><th>Серия</th><th>Звание</th></tr></thead><tbody>${paces}</tbody></table>
-      <p>Каждые два уровня герой меняет облик, а игрок получает новое звание — всего пять обликов. У каждого игрока своя тема;
-      ниже — герой темы «${T.name}» на каждой ступени.</p>
+      <p>На каждом уровне герой меняет облик, а игрок получает новое звание — всего ${T.hero.length} обликов. У каждого игрока
+      своя тема; ниже — герой темы «${T.name}» на каждом уровне.</p>
       <div class="help-heroes">${heroes}</div>`;
 
     /* Звёзды и призы */
