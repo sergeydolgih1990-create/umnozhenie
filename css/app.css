@@ -518,3 +518,29 @@ button.pill { cursor: pointer; }
 .segs i.done { background: var(--on-bg-soft); opacity: .5; }
 .answers-line { font-size: 24px; }
 .help-list.terms { gap: 8px; line-height: 1.4; }
+
+/* ---------- Уровни и испытания ---------- */
+button.level-card { width: 100%; text-align: left; font: inherit; cursor: pointer; }
+.exam-segs { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; margin-top: 9px; }
+.exam-segs i { height: 10px; border-radius: 999px; background: var(--track); }
+.exam-segs i.ok { background: var(--ok); }
+.btn-row.even { grid-template-columns: 1fr 1fr; }
+.btn-row.even .btn-big { font-size: 21px; padding: 16px 10px; }
+.pkg-card.passed { background: #f2fbf6; }
+.pkg-body .pkg-rec.ok { color: var(--ok-dark); }
+.pill.goal { font-size: 15px; }
+.exam-verdict { display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 14px; border-radius: 16px; font-weight: 900; font-size: 15px; text-align: left; }
+.exam-verdict .ic { width: 22px; height: 22px; flex: none; }
+.exam-verdict.ok { background: var(--ok-soft); color: var(--ok-dark); }
+.exam-verdict.bad { background: var(--bad-soft); color: var(--bad-dark); }
+.hero-mini .exam-segs { margin-top: 6px; }
+.help-table.paces td { font-size: 14px; }
+.btn-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
+.btn-row .btn { white-space: nowrap; font-size: 18px; padding: 14px 10px; gap: 8px; }
+.btn-row.even { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.btn-row.even .btn-big { font-size: 20px; padding: 16px 8px; gap: 8px; }
+.btn-row.even .btn-big .ic { width: 24px; height: 24px; }
+
+.pill.goal.broke { background: var(--bad-soft); color: var(--bad-dark); border-color: transparent; white-space: normal; text-align: center; line-height: 1.25; }
+.pkg-name .ic { display: inline-block; width: 16px; height: 16px; vertical-align: -2px; margin-right: 4px; }
+.level-card b { white-space: nowrap; }

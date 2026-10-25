@@ -25,7 +25,8 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
     stop();
     const self = U.inputOf(p) === 'keys';
     R = new U.Round(pkg, { keys, next, onShow, onFinish, selfCheck: self });
-    ctx = { pkg, self, typed: '', flash: null, saved: !!(opts && opts.saved), startedAt: null, count: 3, cdPaused: false, swipeAt: 0, ghost: ghostFor(pkg, p, self) };
+    ctx = { pkg, self, typed: '', flash: null, saved: !!(opts && opts.saved), startedAt: null, count: 3, cdPaused: false, swipeAt: 0, ghost: ghostFor(pkg, p, self),
+      exam: opts && opts.exam ? Object.assign({}, opts.exam, U.levels.terms(U.levels.byId(opts.exam.id), opts.exam.level)) : null };
     U.go('round', {}, { replace: ui.screen === 'round' || ui.screen === 'result' });
     acquireWake();
     if (opts && opts.instant) { ctx.count = 0; ctx.startedAt = Date.now(); R.start(performance.now()); loop(); return; }
@@ -33,7 +34,7 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
   };
 
   function ghostFor(pkg, p, self) {
-    if (pkg.id === 'once' || pkg.mode === 'training') return null;
+    if (pkg.id === 'once' || pkg.mode === 'training' || /^exam-/.test(pkg.id)) return null;
     const best = S.records(U.store.data, pkg.id, p.id, { input: self ? 'keys' : 'voice', cfg: U.pkgSnapshot(pkg) })[0];
     if (!best) return null;
     return { best, marks: best.items.filter((it) => it.at !== null && it.at !== undefined).map((it) => it.at) };
@@ -71,7 +72,7 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
       if (it.a !== undefined) o.a = it.a;
       return o;
     });
-    ui.review = { pkg: ctx.pkg, saved: ctx.saved, self: ctx.self, items, durationMs: Math.round(R.elapsed), paused: R.wasPaused, startedAt: ctx.startedAt };
+    ui.review = { pkg: ctx.pkg, saved: ctx.saved, self: ctx.self, exam: ctx.exam ? { id: ctx.exam.id, level: ctx.exam.level } : null, items, durationMs: Math.round(R.elapsed), paused: R.wasPaused, startedAt: ctx.startedAt };
     if (ctx.pkg.mode === 'dictation') U.sound.go();
     R = null;
     // ответы с клавиатуры уже проверены — сразу итог, без экрана проверки
@@ -111,7 +112,28 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
 
   /* ---------- Экран раунда ---------- */
   function okCount() { return R.items.filter((it) => it.m === 1).length; }
+  // Цель испытания вместо призрака рекорда
+  function goalHTML() {
+    const x = ctx.exam, sec = (v) => U.num(v) + ' с';
+    let t;
+    if (x.series) t = 'Цель: серия ' + x.series + ' · сейчас ' + okCount();
+    else if (x.need) t = 'Цель: ' + x.need + ' верных · сейчас ' + okCount();
+    else if (x.totalMs) t = 'Цель: без ошибок за ' + F.time(x.totalMs);
+    else t = 'Цель: без ошибок, до ' + sec(x.each) + ' на пример';
+    const broke = !x.series && (R.items.some((it) => it.m === 0) || (x.totalMs && R.elapsed > x.totalMs) || R.wasPaused);
+    if (broke) return `<div class="pill ghost goal broke">${ic('cross')}Испытание уже не засчитается — доиграй для тренировки</div>`;
+    return `<div class="pill ghost goal">${ic('target')}${t}</div>`;
+  }
+  // Полоска времени: отсчёт примера или минуты, а в испытании на общее время — запас до лимита
+  function timeBar() {
+    const cd = R.countdown();
+    if (cd) return cd;
+    if (ctx.exam && ctx.exam.totalMs) return { left: Math.max(0, ctx.exam.totalMs - R.elapsed), full: ctx.exam.totalMs, total: true };
+    return null;
+  }
+  const barLabel = (cd) => (R.mode === 'minute' || cd.total ? F.time(cd.left + 999) : Math.ceil(cd.left / 1000) + ' с');
   function ghostHTML() {
+    if (ctx.exam) return goalHTML();
     const g = ctx.ghost, mode = ctx.pkg.mode;
     if (!g) return '';
     const b = g.best.s;
@@ -134,7 +156,7 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
     const counter = R.total ? `${Math.max(n, 1)} / ${R.total}` : `№ ${Math.max(n, 1)}`;
     const pauseBtn = counting && !ctx.cdPaused ? '<span class="icon-gap"></span>'
       : `<button class="icon-btn" data-act="pause" aria-label="${paused ? 'Продолжить' : 'Пауза'}">${ic(paused ? 'play' : 'pause')}</button>`;
-    let html = `<div class="topbar"><div class="pill">${counter}</div><div class="grow center pkg-name">${esc(pkg.name)}</div>${pauseBtn}</div>`;
+    let html = `<div class="topbar"><div class="pill">${counter}</div><div class="grow center pkg-name">${ctx.exam ? ic('trophy') : ''}${esc(pkg.name)}</div>${pauseBtn}</div>`;
 
     if (R.total && R.total <= 40) {
       let segs = '';
@@ -153,15 +175,15 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
     }
 
     if (!pkg.hideTime && !counting) {
-      const cd = R.countdown();
-      if (cd) html += `<div class="timer-row"><div class="timer${cd.left < 1000 ? ' hot' : ''}" id="cd-box"><i id="cd-bar" style="width:${cd.left / cd.full * 100}%"></i></div><b id="cd-num">${mode === 'minute' ? F.time(cd.left + 999) : Math.ceil(cd.left / 1000) + ' с'}</b></div>`;
-      if ((mode === 'fast' && !ctx.ghost) || mode === 'training' || mode === 'limit') html += `<div class="pill ghost">${ic('clock')}<span id="sw">${F.time(R.elapsed)}</span></div>`;
+      const cd = timeBar();
+      if (cd) html += `<div class="timer-row"><div class="timer${cd.left < 1000 ? ' hot' : ''}" id="cd-box"><i id="cd-bar" style="width:${cd.left / cd.full * 100}%"></i></div><b id="cd-num">${barLabel(cd)}</b></div>`;
+      if (!ctx.exam && ((mode === 'fast' && !ctx.ghost) || mode === 'training' || mode === 'limit')) html += `<div class="pill ghost">${ic('clock')}<span id="sw">${F.time(R.elapsed)}</span></div>`;
     }
     if (!counting) html += ghostHTML();
 
     let card;
     if (paused) {
-      card = `<div class="example-card pause-card"><div class="eq" style="margin:0 0 18px">Пауза</div>
+      card = `<div class="example-card pause-card"><div class="eq" style="margin:0 0 ${ctx.exam ? 6 : 18}px">Пауза</div>${ctx.exam ? '<div class="listen" style="margin:0 0 14px">После паузы испытание не засчитается</div>' : ''}
         <button class="btn btn-primary btn-big" data-act="resume">${ic('play')}Продолжить</button>
         <button class="link-btn" data-act="abort">Прервать раунд</button></div>`;
     } else if (counting) {
@@ -215,10 +237,10 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
   }
 
   function updateDynamic() {
-    const cd = R.countdown(), bar = document.getElementById('cd-bar');
+    const cd = timeBar(), bar = document.getElementById('cd-bar');
     if (cd && bar) {
       bar.style.width = (cd.left / cd.full * 100) + '%';
-      document.getElementById('cd-num').textContent = R.mode === 'minute' ? F.time(cd.left + 999) : Math.ceil(cd.left / 1000) + ' с';
+      document.getElementById('cd-num').textContent = barLabel(cd);
       document.getElementById('cd-box').classList.toggle('hot', cd.left < 1000);
     }
     const sw = document.getElementById('sw');
@@ -378,8 +400,8 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
 
   function saveRound() {
     const rv = ui.review, p = U.player(), d = U.store.data;
-    const round = { id: U.store.uid(), player: p.id, pkg: rv.saved ? rv.pkg.id : null, name: rv.pkg.name, mode: rv.pkg.mode,
-      input: rv.self ? 'keys' : 'voice', cfg: U.pkgSnapshot(rv.pkg), startedAt: rv.startedAt || Date.now(),
+    const round = { id: U.store.uid(), player: p.id, pkg: rv.saved ? rv.pkg.id : null, name: (rv.exam ? 'Испытание: ' : '') + rv.pkg.name, mode: rv.pkg.mode,
+      input: rv.self ? 'keys' : 'voice', cfg: U.pkgSnapshot(rv.pkg), startedAt: rv.startedAt || Date.now(), exam: rv.exam || undefined,
       durationMs: rv.durationMs, paused: !!rv.paused, items: rv.items };
     const res = S.commit(d, p, round, Date.now());
     U.store.save();
@@ -400,13 +422,15 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
   U.screens.result = function () {
     const res = ui.result, p = U.player();
     if (!res || !p) return U.screens.home();
-    const r = res.round, s = r.s, T = U.THEMES[p.theme], L = U.levelInfo(p.xp);
-    const before = U.levelInfo(p.xp - res.total);
-    const levelUp = res.levelAfter > res.levelBefore, stageUp = U.stageOf(res.levelAfter) > U.stageOf(res.levelBefore);
+    const r = res.round, s = r.s, T = U.THEMES[p.theme], L = U.levelInfo(p), ex = res.exam;
+    const levelUp = res.levelAfter > res.levelBefore || !!(ex && ex.master);
+    const stageUp = levelUp && U.stageOf(res.levelAfter) > U.stageOf(res.levelBefore);
     let ribbon = '';
-    if (res.record && res.prev) ribbon = 'Новый рекорд!';
-    else if (res.first && !r.paused) ribbon = 'Первый результат!';
+    if (ex && ex.master) ribbon = 'Все уровни пройдены!';
     else if (levelUp) ribbon = 'Новый уровень!';
+    else if (ex && ex.passed) ribbon = 'Испытание пройдено!';
+    else if (!ex && res.record && res.prev) ribbon = 'Новый рекорд!';
+    else if (!ex && res.first && !r.paused) ribbon = 'Первый результат!';
     const celebrate = !!ribbon || res.cups.length;
     let score;
     if (r.mode === 'streak') score = `${s.streak}<small> подряд</small>`;
@@ -414,13 +438,27 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
     else score = `${s.correct}<small> из ${s.total}</small>`;
     const subs = [];
     if (r.mode === 'fast' || r.mode === 'limit' || r.mode === 'training' || r.input === 'keys') subs.push('Время: ' + F.time(s.timeMs));
-    if (res.prev) subs.push((res.record ? 'Прошлый рекорд — ' : 'Рекорд — ') + S.resultText(res.prev));
-    if (r.paused) subs.push('Была пауза — в рекорды не идёт');
-    if (!r.pkg) subs.push('Разовый раунд — в рекорды не идёт');
+    if (!ex) {
+      if (res.prev) subs.push((res.record ? 'Прошлый рекорд — ' : 'Рекорд — ') + S.resultText(res.prev));
+      if (r.paused) subs.push('Была пауза — в рекорды не идёт');
+      if (!r.pkg) subs.push('Разовый раунд — в рекорды не идёт');
+    }
+    let examPanel = '';
+    if (ex && ex.passed) {
+      const msg = levelUp && !ex.master ? 'Открыт уровень ' + res.levelAfter + ': темп ' + U.num(U.levels.pace(res.levelAfter)) + ' с на пример'
+        : ex.newPass ? 'Засчитано на уровне ' + ex.level + ' · испытания ' + L.passed + ' из ' + L.of : 'Пройдено ещё раз';
+      examPanel = `<div class="exam-verdict ok">${ic('check')}<span>${msg}</span></div>`;
+    } else if (ex) {
+      const before = L.done[ex.exam.id] && ex.level === L.lv ? ' · раньше уже пройдено, зачёт остаётся' : '';
+      examPanel = `<div class="exam-verdict bad">${ic('cross')}<span>Не пройдено: ${ex.why.join(', ')}${before}</span></div>`;
+    }
     const lines = res.lines.map((l) => `<li><span>${esc(l[0])}</span><b>+${l[1]}</b></li>`).join('');
-    const basePct = levelUp ? 0 : before.pct;
     const errs = r.items.filter((x) => x.m !== 1).map(errorText);
     const uniq = errs.filter((x, i) => errs.indexOf(x) === i).slice(0, 4);
+    const status = L.master ? 'все уровни пройдены' : stageUp ? 'Герой вырос: ' + T.hero[L.st - 1] + '!' : 'испытания ' + L.passed + ' из ' + L.of;
+    const buttons = ex
+      ? `<div class="btn-row">${ex.passed ? `<button class="btn btn-light" data-act="home">${ic('home')}Домой</button>` : `<button class="btn btn-light" data-act="again">${ic('replay')}Ещё раз</button>`}<button class="btn btn-primary" data-act="exams">${ic('trophy')}К испытаниям</button></div>`
+      : `<div class="btn-row"><button class="btn btn-light" data-act="home">${ic('home')}Домой</button><button class="btn btn-primary" data-act="again">${ic('replay')}Ещё раз</button></div>`;
     return `<div class="screen">
       ${celebrate ? A.confetti() : ''}
       <div class="result">
@@ -428,28 +466,36 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
         <div class="pkg-name">${esc(r.name)}${U.VOICE_MODE && r.input === 'keys' ? ' · ответы с клавиатуры' : ''}</div>
         <div class="score">${score}</div>
         ${subs.length ? `<div class="sub">${subs.join(' · ')}</div>` : ''}
+        ${examPanel}
         <div class="panel earn"><div class="total">+${res.total} ${A.star()}<button class="link-btn help-link" data-act="help">за что звёзды?</button></div>${lines ? `<ul>${lines}</ul>` : ''}</div>
         <div class="panel hero-mini">${A.hero(p.theme, L.st)}
           <div class="grow"><b style="font-size:17px">Уровень ${L.lv} · ${T.titles[L.st - 1]}</b>
-            <div class="soft">${stageUp ? 'Герой вырос: ' + T.hero[L.st - 1] + '!' : levelUp ? 'Новый уровень!' : `<span class="gain">+${res.total}</span>` + (L.next ? ' · до ' + (L.lv + 1) + '-го: ' + L.left + ' ' + starSm() : '')}</div>
-            <div class="xp"><i style="width:${Math.max(0, basePct)}%"></i><b style="width:${Math.max(0, L.pct - basePct)}%"></b></div></div>
+            <div class="soft">${status}</div>${U.examSegs(L)}</div>
         </div>
         ${uniq.length ? `<div class="again">Ошибки${uniq.map((x) => `<span class="chip-ex">${x}</span>`).join('')}</div>` : ''}
       </div>
-      <div class="btn-row"><button class="btn btn-light" data-act="home">${ic('home')}Домой</button><button class="btn btn-primary" data-act="again">${ic('replay')}Ещё раз</button></div>
+      ${buttons}
     </div>`;
   };
   U.actions.again = () => {
-    const r = ui.result && ui.result.round;
+    const r = ui.result && ui.result.round, p = U.player();
     if (!r) return;
+    if (r.exam) {
+      // испытание — в темпе текущего уровня игрока
+      const e = U.levels.byId(r.exam.id), lv = U.levels.level(p);
+      U.play.start(U.levels.pkgFor(e, lv), { saved: false, exam: { id: e.id, level: lv } });
+      return;
+    }
     const pk = r.pkg ? U.pkgById(r.pkg) : Object.assign({ id: 'once' }, r.cfg);
     if (pk) U.play.start(pk, { saved: !!r.pkg });
   };
 
   /* ---------- Для проверки: раунд с готовыми ответами без ожидания ---------- */
-  P.simulate = function (pkgId, upto, stage) {
-    const pkg = U.pkgById(pkgId);
-    P.start(pkg, { saved: true, instant: true });
+  P.simulate = function (pkgId, upto, stage, examId) {
+    if (examId) {
+      const e = U.levels.byId(examId), lv = U.levels.level(U.player());
+      P.start(U.levels.pkgFor(e, lv), { saved: false, instant: true, exam: { id: e.id, level: lv } });
+    } else P.start(U.pkgById(pkgId), { saved: true, instant: true });
     if (!R) return;
     let t = performance.now();
     const say = (v) => {

@@ -6,7 +6,7 @@
   const SLOW_MS = 6000;   // медленный ответ попадает в «Работу над ошибками»
   const DAY = 86400000;
   // Звёзды: за что и сколько. Отсюда же берёт числа экран «Как устроены награды».
-  const BONUS = { correct: 1, trainingMult: 2, clean: 5, cleanMin: 5, record: 10, gold: 3, cup: 15, all: 50, quest: 20 };
+  const BONUS = { correct: 1, trainingMult: 2, clean: 5, cleanMin: 5, record: 10, gold: 3, cup: 15, all: 50, quest: 20, exam: 15, level: 50 };
 
   const hasT = (it) => it.t !== null && it.t !== undefined && !it.late;
 
@@ -154,7 +154,7 @@
   function quest(data, player, now) {
     const ws = weekStart(now), we = shiftWeek(ws, 1);
     const rs = data.rounds.filter((r) => r.player === player.id && r.startedAt >= ws && r.startedAt < we);
-    const clean = rs.some((r) => r.pkg === 'school' && r.s.correct === r.s.total);
+    const clean = rs.some((r) => (r.pkg === 'school' || (r.exam && r.exam.id === 'school')) && r.s.correct === r.s.total);
     const done = player.quests || [];
     let w = done.indexOf(String(ws)) >= 0 ? ws : shiftWeek(ws, -1), weeks = 0;
     while (done.indexOf(String(w)) >= 0) { weeks++; w = shiftWeek(w, -1); }
@@ -169,6 +169,8 @@
     const record = eligible(round) && (!prev || better(round.mode, round, prev) < 0);
     const newGold = applyMastery(data, player.id, round.items);
     const cups = checkCups(data, player.id);
+    const levelBefore = U.levels ? U.levels.level(player) : 1;
+    const exam = round.exam && U.levels ? U.levels.apply(player, round) : null;
     const q = quest(data, player, now);
     let questWon = false;
     if (q.done && !q.awarded) { (player.quests = player.quests || []).push(q.key); questWon = true; }
@@ -181,15 +183,17 @@
     if (newGold.length) lines.push([(newGold.length === 1 ? 'Золотая клетка ' : 'Золотые клетки ') + newGold.map((k) => U.gen.text(k).replace(/ /g, ' ')).join(', '), BONUS.gold * newGold.length]);
     cups.forEach((c) => lines.push(['Кубок «' + c.name + '»', c.bonus]));
     if (questWon) lines.push(['Задание недели', BONUS.quest]);
+    if (exam && exam.newPass) lines.push(['Испытание «' + exam.exam.name + '» пройдено', BONUS.exam]);
+    if (exam && exam.levelUp) lines.push(['Открыт уровень ' + (exam.level + 1), BONUS.level]);
+    if (exam && exam.master) lines.push(['Все уровни пройдены', BONUS.level]);
     const total = lines.reduce((a, l) => a + l[1], 0);
 
-    const levelBefore = U.levelOf(player.xp || 0);
     player.xp = (player.xp || 0) + total;
     player.stars = (player.stars || 0) + total;
     round.stars = total;
     round.record = record;
     return { round, prev, record, first: eligible(round) && !prev, lines, total, newGold, cups, questWon,
-      levelBefore, levelAfter: U.levelOf(player.xp) };
+      exam, levelBefore, levelAfter: U.levels ? U.levels.level(player) : 1 };
   }
 
   U.score = { FAST_MS, SLOW_MS, DAY, BONUS, summarize, better, eligible, recordSig, records, resultText, fmtTime, applyMastery,

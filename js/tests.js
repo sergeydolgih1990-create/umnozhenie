@@ -236,10 +236,53 @@
   check('рекорды «вслух» не смешаны с «сам»', S.records(cd, 'school', 'p', { input: 'keys' }).length === 1 && S.records(cd, 'school', 'p', { input: 'voice' }).length === 2);
 
   /* --- уровни --- */
-  check('уровни: 0 звёзд — 1', U.levelOf(0) === 1);
-  check('уровни: 30 звёзд — 2', U.levelOf(30) === 2);
-  check('уровни: 1550 — 15', U.levelOf(1550) === 15 && U.levelOf(99999) === 15);
-  check('ступень героя по уровню', U.stageOf(1) === 1 && U.stageOf(4) === 2 && U.stageOf(15) === 5);
+  /* --- уровни через испытания --- */
+  const Lv = U.levels, E = (id) => Lv.byId(id);
+  check('10 уровней, темп от 10 до 3 с', Lv.MAX === 10 && Lv.pace(1) === 10 && Lv.pace(6) === 5 && Lv.pace(10) === 3);
+  check('7 испытаний', Lv.EXAMS.length === 7);
+  check('ступень героя каждые 2 уровня', U.stageOf(1) === 1 && U.stageOf(2) === 1 && U.stageOf(3) === 2 && U.stageOf(10) === 5);
+  check('блиц 1-го уровня: по 10 с', Lv.terms(E('school'), 1).each === 10);
+  check('диктант: темп + 2 с', Lv.terms(E('dictation'), 6).each === 7);
+  check('20 примеров на 1-м уровне — 3:20', Lv.terms(E('mulonly'), 1).totalMs === 200000);
+  check('минута: 6 верных на 1-м, 20 на 10-м', Lv.terms(E('minute'), 1).need === 6 && Lv.terms(E('minute'), 10).need === 20);
+  check('серия: 10 на 1-м, 50 на 10-м', Lv.terms(E('streak'), 1).series === 10 && Lv.terms(E('streak'), 10).series === 50);
+  const pk = Lv.pkgFor(E('school'), 3);
+  check('пакет испытания в темпе уровня', pk.mode === 'teacher' && pk.interval === 8 && pk.mul === 8 && pk.div === 8);
+  const mkR = (items, extra) => { const r = Object.assign({ id: 'x' + Math.random(), items, mode: 'teacher', durationMs: 1000, startedAt: mon }, extra || {}); r.s = S.summarize(r); return r; };
+  const okItems = (n) => Array.from({ length: n }, (_, i) => ({ k: 'm' + (2 + i % 8) + 'x3', m: 1, t: 1000 }));
+  check('блиц без ошибок — пройдено', Lv.check(E('school'), 1, mkR(okItems(16))).passed);
+  const oneErr = okItems(16); oneErr[3].m = 0;
+  const failed = Lv.check(E('school'), 1, mkR(oneErr));
+  check('одна ошибка — не пройдено и сказано почему', !failed.passed && /1 ошибка/.test(failed.why.join()), failed.why);
+  const slowR = Lv.check(E('mulonly'), 1, mkR(okItems(20), { mode: 'fast', durationMs: 201000 }));
+  check('общее время больше лимита — не пройдено', !slowR.passed && /время 3:21 — нужно до 3:20/.test(slowR.why.join()), slowR.why);
+  check('пауза — не засчитано', !Lv.check(E('school'), 1, mkR(okItems(16), { paused: true })).passed);
+  check('минута: мало верных', !Lv.check(E('minute'), 1, mkR(okItems(5), { mode: 'minute' })).passed && Lv.check(E('minute'), 1, mkR(okItems(6), { mode: 'minute' })).passed);
+  check('серия короче нужной — не пройдено', !Lv.check(E('streak'), 1, mkR(okItems(9), { mode: 'streak' })).passed);
+
+  const kid = { id: 'k', stars: 0, xp: 0 };
+  check('новый игрок — 1-й уровень', Lv.level(kid) === 1);
+  const passSize = (id, lv) => { const tt = Lv.terms(E(id), lv); return Math.max(E(id).mul + E(id).div, tt.need || 0, tt.series || 0); };
+  const pass = (id, lv) => Lv.apply(kid, mkR(okItems(passSize(id, lv)), { exam: { id, level: lv }, mode: E(id).mode === 'streak' || E(id).mode === 'minute' ? E(id).mode : 'teacher' }));
+  let ap = pass('school', 1);
+  check('первое прохождение засчитано', ap.newPass && !ap.levelUp && Lv.progress(kid, 1).passed === 1);
+  ap = pass('school', 1);
+  check('повтор не засчитывается второй раз', !ap.newPass && Lv.progress(kid, 1).passed === 1);
+  ap = pass('fast', 2);
+  check('испытание чужого уровня не засчитывается', !ap.newPass && Lv.level(kid) === 1);
+  ['fast', 'mulonly', 'divonly', 'minute', 'streak'].forEach((id) => pass(id, 1));
+  ap = pass('dictation', 1);
+  check('все 7 — открыт уровень 2', ap.levelUp && Lv.level(kid) === 2);
+  kid.lvl = 10;
+  Lv.EXAMS.slice(0, 6).forEach((e) => pass(e.id, 10));
+  ap = pass('dictation', 10);
+  check('все 7 на 10-м — мастер', ap.master && kid.master && Lv.level(kid) === 10);
+
+  const ld = { rounds: [], mastery: {}, cups: {} }, lp = { id: 'lp', xp: 0, stars: 0, quests: [] };
+  const er = { id: 'e1', player: 'lp', pkg: null, mode: 'teacher', startedAt: mon, durationMs: 80000, exam: { id: 'school', level: 1 }, items: okItems(16) };
+  res = S.commit(ld, lp, er, mon);
+  check('испытание: +15 звёзд и уровень в итоге', res.exam && res.exam.newPass && res.lines.some((l) => /Испытание/.test(l[0]) && l[1] === 15), res.lines);
+  check('испытание не попадает в рекорды', !S.eligible(er));
 
   out.unshift('ИТОГ: ' + ok + ' ok, ' + fail + ' fail');
   const pre = document.createElement('pre');

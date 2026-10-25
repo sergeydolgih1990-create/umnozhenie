@@ -20,7 +20,8 @@
     }
   };
 
-  // Сколько звёзд нужно накопить за всё время, чтобы получить уровень (индекс + 1)
+  // Старая система «уровень от звёзд» — осталась только для страницы макетов (mockups.html).
+  // В тренажёре уровни открываются испытаниями: js/levels.js.
   U.LEVELS = [0, 30, 70, 120, 180, 250, 330, 420, 520, 640, 780, 940, 1120, 1320, 1550];
 
   U.levelOf = function (xp) {
@@ -28,6 +29,7 @@
     while (level < U.LEVELS.length && xp >= U.LEVELS[level]) level++;
     return level;
   };
-  U.stageOf = function (level) { return Math.min(5, Math.ceil(level / 3)); };
+  // Ступень героя: новая каждые 2 уровня из 10
+  U.stageOf = function (level) { return Math.min(5, Math.max(1, Math.ceil(level / 2))); };
   U.titleOf = function (theme, level) { return U.THEMES[theme].titles[U.stageOf(level) - 1]; };
 })(window.U = window.U || {});

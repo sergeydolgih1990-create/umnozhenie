@@ -62,6 +62,14 @@
         U.score.commit(d, p, round, when);
       }
     });
+    // Уровни через испытания: Саша на 3-м, Женя на 1-м, Валя на 7-м
+    const passAll = (lv) => { const o = {}; U.levels.EXAMS.forEach((e) => { o[e.id] = { at: now - (12 - lv) * DAY, round: null }; }); return o; };
+    const some = (ids, lv) => { const o = {}; ids.forEach((id) => { o[id] = { at: now - 8 * DAY, round: null }; }); return o; };
+    Object.assign(d.players[0], { lvl: 3, exams: { 1: passAll(1), 2: passAll(2), 3: some(['school', 'mulonly', 'minute', 'streak'], 3) } });
+    Object.assign(d.players[1], { lvl: 1, exams: { 1: some(['school', 'fast'], 1) } });
+    const valya = { 7: some(['school', 'fast'], 7) };
+    for (let lv = 1; lv <= 6; lv++) valya[lv] = passAll(lv);
+    Object.assign(d.players[2], { lvl: 7, exams: valya });
     d.purchases.push({ id: 'b1', player: 'p1', prize: 'z1', name: 'Полчаса игры', emoji: '🎮', price: 60, at: now - 4 * DAY });
     d.players[0].stars -= 60;
     d.settings.backupRounds = d.rounds.length - 4;

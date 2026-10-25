@@ -10,6 +10,7 @@
 <script src="../js/packages.js"></script>
 <script src="../js/engine.js"></script>
 <script src="../js/scoring.js"></script>
+<script src="../js/levels.js"></script>
 <script src="../js/sound.js"></script>
 <script src="../js/charts.js"></script>
 <script src="../js/ui.js"></script>
@@ -255,7 +256,7 @@
     U.go('home', {}, { reset: true });
     click('.topbar [data-act="help"]');
     check('описание наград открывается со звёзд', U.ui.screen === 'help');
-    check('описание: 15 уровней', document.querySelectorAll('.help-table.levels tbody tr').length === 15);
+    check('описание: таблица 10 уровней с темпом', document.querySelectorAll('.help-table.paces tbody tr').length === 10);
     check('описание: 5 ступеней героя', document.querySelectorAll('.help-hero').length === 5);
     check('описание: числа из настроек', new RegExp('быстрее ' + U.score.FAST_MS / 1000 + ' секунд').test(document.body.textContent));
     check('описание: без упоминания кнопок взрослого', !/Верно» или «Неверно/.test(document.getElementById('view').textContent));
@@ -263,6 +264,35 @@
     check('карточка игрока без выбора способа ответа', !$('.input-toggle'));
     U.go('charts', { pkg: 'all', metric: 'pct' });
     check('графики без фильтра «вслух/клавиатура»', !$('[data-act="chartInp"]'));
+
+    /* Уровни через испытания */
+    U.go('home', {}, { reset: true });
+    check('главный экран: уровень 1, испытания 0 из 7', /Уровень 1/.test($('.level-card').textContent) && /0 из 7/.test($('.level-card').textContent));
+    click('.level-card');
+    check('экран испытаний: 7 испытаний', U.ui.screen === 'exams' && document.querySelectorAll('[data-act="exam"]').length === 7);
+    check('условия в темпе 1-го уровня', /до\s10 с/.test(document.getElementById('view').textContent) && /3\sмин\s20\sс/.test(document.getElementById('view').textContent) && /уложись во время/.test(document.getElementById('view').textContent));
+    click('[data-act="exam"][data-id="school"]'); await wait(3300);
+    check('испытание идёт в темпе уровня', R().pkg.interval === 10 && /Цель/.test($('.goal').textContent));
+    for (let i = 0; i < 16 && U.ui.screen === 'round'; i++) await typeAns(U.gen.parse(R().cur().k).ans + (i === 5 ? 1 : 0));
+    check('с ошибкой — «Не пройдено: 1 ошибка»', U.ui.screen === 'result' && /Не пройдено: 1 ошибка/.test($('.exam-verdict').textContent));
+    check('после неудачи — «Ещё раз» и «К испытаниям»', !!$('[data-act="again"]') && !!$('[data-act="exams"]'));
+    click('[data-act="again"]'); await wait(3300);
+    for (let i = 0; i < 16 && U.ui.screen === 'round'; i++) await typeAns(U.gen.parse(R().cur().k).ans);
+    check('без ошибок — «Испытание пройдено!»', /Испытание пройдено/.test($('.ribbon').textContent) && /1 из 7/.test(document.getElementById('view').textContent));
+    check('за испытание +15 звёзд', /Испытание «Школьный блиц» пройдено/.test($('.earn').textContent));
+    const me = U.player();
+    ['fast', 'mulonly', 'divonly', 'minute', 'streak'].forEach((id) => { me.exams[1][id] = { at: Date.now(), round: null }; });
+    click('[data-act="exams"]');
+    check('6 из 7 отмечены пройденными', document.querySelectorAll('.pkg-card.passed').length === 6);
+    click('[data-act="exam"][data-id="dictation"]'); await wait(3300);
+    check('диктант-испытание: по 12 с (темп + 2)', R().pkg.interval === 12);
+    for (let i = 0; i < 16 && U.ui.screen === 'round'; i++) await typeAns(U.gen.parse(R().cur().k).ans);
+    check('все 7 — «Новый уровень!» и темп 9 с', /Новый уровень/.test($('.ribbon').textContent) && /Открыт уровень 2: темп 9 с/.test($('.exam-verdict').textContent));
+    check('уровень игрока — 2', U.levels.level(U.player()) === 2);
+    click('[data-act="exams"]');
+    check('испытания 2-го уровня: по 9 с, ни одно не пройдено', /9 секунд на пример/.test($('.panel h3').textContent) && document.querySelectorAll('.pkg-card.passed').length === 0);
+    U.go('home', {}, { reset: true });
+    check('главный экран: уровень 2', /Уровень 2/.test($('.level-card').textContent));
   } catch (e) {
     fail++;
     log.push('ОШИБКА СЦЕНАРИЯ: ' + e.message + ' @ ' + (e.stack || '').split('\n')[1]);

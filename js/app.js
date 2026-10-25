@@ -29,6 +29,7 @@
       if (act) U.actions[act]({});
       else if (sc) U.go(sc, Object.fromEntries(q.entries()));
       if (q.get('play')) U.play.simulate(q.get('play'), Number(q.get('upto') || 0), q.get('stage'));
+      if (q.get('exam')) U.play.simulate(null, Number(q.get('upto') || 0), q.get('stage'), q.get('exam'));
     }
 
     if ('serviceWorker' in navigator && location.protocol === 'https:') {

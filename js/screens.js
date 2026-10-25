@@ -16,10 +16,14 @@
       <div class="grow who"><div class="name">${title}</div>${o.sub ? `<div class="title">${o.sub}</div>` : ''}</div>${o.right || ''}</div>`;
   };
   const starsPill = (p) => `<div class="pill">${star()}${p.stars || 0}</div>`;
-  const levelInfo = (xp) => {
-    const lv = U.levelOf(xp || 0), cur = U.LEVELS[lv - 1], next = U.LEVELS[lv];
-    return { lv, st: U.stageOf(lv), next, left: next ? next - (xp || 0) : 0, pct: next ? Math.round(((xp || 0) - cur) / (next - cur) * 100) : 100 };
+  // Уровень игрока и испытания текущего уровня
+  const levelInfo = (p) => {
+    const lv = U.levels.level(p), pr = U.levels.progress(p, lv);
+    return { lv, st: p && p.master ? 5 : U.stageOf(lv), passed: pr.passed, of: pr.of, done: pr.done, pace: U.levels.pace(lv), master: !!(p && p.master) };
   };
+  // Полоска из 7 сегментов: какие испытания уровня пройдены
+  const examSegs = (L) => `<div class="exam-segs">${U.levels.EXAMS.map((e) => `<i class="${L.done[e.id] || L.master ? 'ok' : ''}"></i>`).join('')}</div>`;
+  U.examSegs = examSegs;
   U.levelInfo = levelInfo;
   const exHTML = (k) => { const p = U.gen.parts(k); return `${p[0]} <span class="op">${p[1]}</span> ${p[2]}`; };
   U.exHTML = exHTML;
@@ -30,7 +34,7 @@
   U.screens.players = function () {
     const d = D(), ps = d.players;
     const cards = ps.map((p) => {
-      const L = levelInfo(p.xp);
+      const L = levelInfo(p);
       return `<button class="player-card" data-theme="${p.theme}" data-act="pickPlayer" data-id="${p.id}">
         ${A.hero(p.theme, L.st)}<span class="pc-name"><span>${p.avatar}</span>${esc(p.name)}</span>
         <span class="pc-sub">Уровень ${L.lv} · ${U.THEMES[p.theme].titles[L.st - 1]}</span></button>`;
@@ -101,7 +105,7 @@
     const enough = q.trainings >= q.need;
     const head = q.awarded ? `<span class="reward">${ic('check')}выполнено</span>` : `<span class="reward">+20 ${starSm()}</span>`;
     return `<div class="panel"><h3><span style="color:#ff7a2a">${ic('flame')}</span>Задание недели${head}</h3>
-      <div class="quest-line"><span class="box${enough ? ' done' : ''}">${enough ? ic('check') : ''}</span>${q.need} ${pl(q.need, 'тренировка', 'тренировки', 'тренировок')}<span class="prog">${Math.min(q.trainings, q.need)} из ${q.need}</span></div>
+      <div class="quest-line"><span class="box${enough ? ' done' : ''}">${enough ? ic('check') : ''}</span>${q.need} ${pl(q.need, 'раунд', 'раунда', 'раундов')}<span class="prog">${Math.min(q.trainings, q.need)} из ${q.need}</span></div>
       <div class="quest-line"><span class="box${q.clean ? ' done' : ''}">${q.clean ? ic('check') : ''}</span>«Школьный блиц» без ошибок</div>
       ${q.weeks ? `<div class="soft">Серия: ${q.weeks} ${pl(q.weeks, 'неделя', 'недели', 'недель')} подряд</div>` : ''}</div>`;
   }
@@ -110,7 +114,7 @@
   U.screens.home = function () {
     const p = U.player();
     if (!p) return U.screens.players();
-    const T = U.THEMES[p.theme], L = levelInfo(p.xp), q = S.quest(D(), p, Date.now());
+    const T = U.THEMES[p.theme], L = levelInfo(p), q = S.quest(D(), p, Date.now());
     const n = D().rounds.length - (D().settings.backupRounds || 0);
     return `<div class="screen">
       <div class="topbar">
@@ -120,13 +124,13 @@
         <button class="icon-btn" data-act="parent" aria-label="Для родителей">${ic('lock')}</button>
       </div>
       ${needBackup() ? `<button class="banner" data-act="backup">${ic('download')}<span>${n} ${pl(n, 'раунд', 'раунда', 'раундов')} без резервной копии. <b>Сохранить копию</b></span></button>` : ''}
-      <div class="hero-stage">${blitzChip(p)}${A.hero(p.theme, L.st)}<div class="hero-caption">${T.hero[L.st - 1]} · ступень ${L.st} из 5</div></div>
-      <div class="panel">
-        <div class="between"><b style="font-size:18px">Уровень ${L.lv}</b><span class="soft">${L.next ? 'до ' + (L.lv + 1) + '-го: ' + L.left + ' ' + starSm() : 'высший уровень!'}</span></div>
-        <div class="xp"><i style="width:${L.pct}%"></i></div>
-      </div>
+      <div class="hero-stage">${blitzChip(p)}${A.hero(p.theme, L.st)}<div class="hero-caption">${T.hero[L.st - 1]}</div></div>
+      <button class="panel level-card" data-act="exams">
+        <div class="between"><b style="font-size:18px">Уровень ${L.lv}${L.master ? ' ✓' : ''}</b><span class="soft">${L.master ? 'все уровни пройдены' : 'испытания ' + L.passed + ' из ' + L.of + ' · по ' + U.num(L.pace) + ' с'}</span></div>
+        ${examSegs(L)}
+      </button>
       ${questPanel(q)}
-      <button class="btn btn-primary btn-big" data-act="packages">${ic('play')}Играть</button>
+      <div class="btn-row even"><button class="btn btn-primary btn-big" data-act="exams">${ic('trophy')}Испытания</button><button class="btn btn-light btn-big" data-act="packages">${ic('play')}Тренировки</button></div>
       <div class="tiles">
         <button class="tile" data-act="map"><span style="color:#4f7cff">${ic('map')}</span>Карта</button>
         <button class="tile" data-act="records"><span style="color:#e0a100">${ic('trophy')}</span>Рекорды</button>
@@ -155,13 +159,40 @@
         <span class="pkg-body"><b>${esc(pk.name)}</b><span>${desc}</span>${best ? `<span class="pkg-rec">${ic('trophy')}рекорд: ${S.resultText(best)}</span>` : ''}</span>
         <span class="pkg-go">${ic('play')}</span></button>`;
     };
-    return `<div class="screen scroll">${topbar('Во что играем?', { right: starsPill(p) })}
+    return `<div class="screen scroll">${topbar('Тренировки', { sub: 'В любом темпе, на уровень не влияют', right: starsPill(p) })}
       ${U.VOICE_MODE ? inputToggle(input) : ''}
       <div class="pkg-list">${U.STD_PACKAGES.map(card).join('')}</div>
       ${d.packages.length ? `<h2 class="sec">Свои пакеты</h2><div class="pkg-list">${d.packages.map(card).join('')}</div>` : ''}
       <button class="btn btn-light" data-act="newPkg">${ic('plus')}Свой раунд</button>
     </div>`;
   };
+  /* ---------- Испытания уровня ---------- */
+  U.screens.exams = function () {
+    const p = U.player(), Lv = U.levels, L = levelInfo(p), lv = L.lv;
+    const left = L.of - L.passed;
+    const next = lv < Lv.MAX ? `Пройди все ${L.of} без ошибок и уложись во время — откроется уровень ${lv + 1}: ${U.num(Lv.pace(lv + 1))} секунд на пример.${left ? ' Осталось ' + left + ' ' + pl(left, 'испытание', 'испытания', 'испытаний') + '.' : ''}` : 'Это последний уровень — пройди все испытания без ошибок и уложись во время.';
+    const head = L.master
+      ? `<div class="panel"><h3>${ic('trophy')}Все ${Lv.MAX} уровней пройдены!</h3><div class="soft">Испытания 10-го уровня можно проходить снова — для тренировки.</div></div>`
+      : `<div class="panel"><h3>${ic('trophy')}Уровень ${lv} · ${U.num(L.pace)} секунд на пример</h3><div class="soft">${next}</div>${examSegs(L)}</div>`;
+    const cards = Lv.EXAMS.map((e) => {
+      const M = U.MODES[e.mode], ok = L.done[e.id];
+      return `<button class="pkg-card${ok ? ' passed' : ''}" data-act="exam" data-id="${e.id}">
+        <span class="pkg-ic" style="background:${ok ? 'var(--ok)' : M.color}">${ic(ok ? 'check' : M.icon)}</span>
+        <span class="pkg-body"><b>${e.name}</b><span>${Lv.describe(e, lv)}</span>${ok ? `<span class="pkg-rec ok">пройдено ${F.date(ok.at)}</span>` : ''}</span>
+        <span class="pkg-go">${ic('play')}</span></button>`;
+    }).join('');
+    return `<div class="screen scroll">${topbar('Испытания', { right: starsPill(p) })}
+      ${head}
+      <div class="pkg-list">${cards}</div>
+      <button class="btn btn-light" data-act="help">${ic('question')}Все уровни и условия</button>
+    </div>`;
+  };
+  U.actions.exams = () => U.go('exams');
+  U.actions.exam = (ds) => {
+    const p = U.player(), e = U.levels.byId(ds.id), lv = U.levels.level(p);
+    if (e) U.play.start(U.levels.pkgFor(e, lv), { saved: false, exam: { id: e.id, level: lv } });
+  };
+
   // Кто отвечает: вслух (отмечает взрослый) или сам (клавиатура). Запоминается у игрока.
   function inputToggle(input, act) {
     const a = act || 'setInput';
@@ -367,7 +398,7 @@
       <button class="btn btn-light" data-act="delRound" data-id="${r.id}">${ic('trash')}Удалить раунд</button>
     </div>`;
   };
-  U.actions.delRound = (ds) => U.requirePin('Удаление раунда из истории', () => U.confirm('Удалить раунд?', 'Звёзды за него снимутся. Карта таблицы не меняется.', 'Удалить', () => {
+  U.actions.delRound = (ds) => U.requirePin('Удаление раунда из истории', () => U.confirm('Удалить раунд?', 'Звёзды за него снимутся. Карта таблицы и пройденные испытания не меняются.', 'Удалить', () => {
     const d = D(), r = d.rounds.find((x) => x.id === ds.id);
     if (!r) return;
     const p = d.players.find((x) => x.id === r.player);
@@ -470,7 +501,7 @@
           <button class="btn btn-primary btn-sm" data-act="addSchool">Добавить</button></div></div>
         ${school ? `<div class="rows">${school}</div>` : '<div class="muted">Школьных результатов пока нет — они появятся на графиках золотыми отметками.</div>'}`);
     }
-    const players = d.players.map((x) => { const L = levelInfo(x.xp); return `<div class="lrow"><span class="avatar sm">${x.avatar}</span><span class="grow"><b>${esc(x.name)}</b><span>Уровень ${L.lv} · ${x.stars || 0} ${pl(x.stars || 0, 'звезда', 'звезды', 'звёзд')} · ${U.THEMES[x.theme].name}</span></span>
+    const players = d.players.map((x) => { const L = levelInfo(x); return `<div class="lrow"><span class="avatar sm">${x.avatar}</span><span class="grow"><b>${esc(x.name)}</b><span>Уровень ${L.lv} · ${x.stars || 0} ${pl(x.stars || 0, 'звезда', 'звезды', 'звёзд')} · ${U.THEMES[x.theme].name}</span></span>
       <button class="mini-btn" data-act="editPlayer" data-id="${x.id}" aria-label="Изменить">${ic('edit')}</button><button class="mini-btn danger" data-act="delPlayer" data-id="${x.id}" aria-label="Удалить">${ic('trash')}</button></div>`; }).join('');
     html += sec('Игроки', 'users', `<div class="rows">${players}</div><button class="btn btn-light btn-sm" data-act="addPlayer">${ic('plus')}Добавить игрока</button>`);
     html += sec('Как устроены награды', 'question', `<div class="muted">Звёзды, уровни, карта таблицы, кубки, задание недели, рекорды — что за что даётся и как переходит.</div>
