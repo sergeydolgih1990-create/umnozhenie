@@ -59,7 +59,8 @@ html.app-root, .app-root body { margin: 0; height: 100%; overflow: hidden; backg
 .bg .bg-sea { left: 0; right: 0; bottom: 0; width: 100%; height: 30%; }
 .bg .bg-gulls { width: 70px; right: 70px; top: 118px; }
 /* На плотных экранах мелкий декор убираем, чтобы он не попадал под полосы и таблицы */
-.app:not([data-screen="home"]):not([data-screen="players"]):not([data-screen="result"]) .bg :is(.bg-comet, .bg-planet-small, .bg-sun, .bg-gulls, .bg-cloud1, .bg-cloud2) { display: none; }
+.app:not([data-screen="home"]):not([data-screen="players"]):not([data-screen="result"]) .bg :is(.bg-comet, .bg-planet-small, .bg-sun, .bg-gulls) { display: none; }
+.app:not([data-screen="home"]):not([data-screen="players"]):not([data-screen="result"]):not([data-screen="round"]) .bg :is(.bg-cloud1, .bg-cloud2, .bg-motes) { display: none; }
 .app[data-screen="result"] .bg :is(.bg-comet, .bg-planet-small, .bg-sun, .bg-gulls) { display: none; }
 
 /* Экран */
@@ -226,7 +227,9 @@ html.app-root, .app-root body { margin: 0; height: 100%; overflow: hidden; backg
 
 /* Итог */
 .confetti { position: absolute; left: 0; top: 0; width: 100%; height: 66%; z-index: 0; pointer-events: none; }
-.result { flex: 1; min-height: 0; position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; gap: 8px; text-align: center; }
+.result { flex: 1; min-height: 0; position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 8px; text-align: center; overflow-y: auto; padding-top: 8px; scrollbar-width: none; }
+.result::-webkit-scrollbar { display: none; }
+.result > * { flex: none; margin-block: auto; }
 .ribbon {
   margin-top: 18px; padding: 10px 30px; font-size: 26px; font-weight: 900; color: #5a3a00;
   background: linear-gradient(180deg, #ffe27a, #ffc531); border-radius: 14px; transform: rotate(-3deg);
@@ -544,3 +547,257 @@ button.level-card { width: 100%; text-align: left; font: inherit; cursor: pointe
 .pill.goal.broke { background: var(--bad-soft); color: var(--bad-dark); border-color: transparent; white-space: normal; text-align: center; line-height: 1.25; }
 .pkg-name .ic { display: inline-block; width: 16px; height: 16px; vertical-align: -2px; margin-right: 4px; }
 .level-card b { white-space: nowrap; }
+
+/* ---------- Пройденные испытания уровня — свёрнутым списком ---------- */
+.done-block { background: var(--panel); border: 1.5px solid var(--panel-line); border-radius: 20px; color: var(--on-panel); padding: 2px 6px; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.done-block > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 11px 8px; font-weight: 900; font-size: 16px; }
+.done-block > summary::-webkit-details-marker { display: none; }
+.done-block > summary .ic { color: var(--ok); }
+.done-block > summary::after { content: ""; margin: -4px 6px 0 auto; width: 9px; height: 9px; border-right: 3px solid currentColor; border-bottom: 3px solid currentColor; transform: rotate(45deg); transition: transform .2s; flex: none; }
+.done-block[open] > summary::after { transform: rotate(-135deg); margin-top: 4px; }
+.done-list { display: grid; gap: 6px; padding: 0 0 6px; }
+.done-row { border: 0; width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; padding: 9px 12px; border-radius: 14px; background: var(--card); color: var(--ink); box-shadow: 0 3px 0 rgba(0, 0, 0, .1); }
+.done-ic { width: 30px; height: 30px; border-radius: 10px; background: var(--ok); color: #fff; display: grid; place-items: center; flex: none; }
+.done-ic .ic { width: 18px; height: 18px; }
+.done-row b { display: block; font-size: 15px; font-weight: 900; }
+.done-row .grow > span { display: block; font-size: 12px; color: var(--ok-dark); font-weight: 800; }
+.done-go { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 900; color: var(--ink-soft); white-space: nowrap; }
+.done-go .ic { width: 15px; height: 15px; }
+.done-block > .soft { padding: 0 8px 9px; font-size: 13px; }
+
+/* ---------- Анимации (Сергей, 25.10.2026). Выключатель «Анимации» у родителей и системное «уменьшить движение» гасят всё ---------- */
+svg.hero :is(.h-float, .h-float-s, .h-flame, .h-twinkle, .h-breathe, .h-eye, .h-tail, .h-wing, .h-wobble, .h-peek, .h-rock, .h-flag, .h-fx) { transform-box: fill-box; }
+svg.hero .h-fx { opacity: 0; }
+svg.hero .h-smoke circle { fill: #ece9f6; }
+svg.hero .h-puff circle { fill: #f1f4f2; stroke: #c9d3cd; stroke-width: 2; }
+svg.hero .h-crack { stroke-dasharray: 80; stroke-dashoffset: 80; }
+/* при взлёте и прыжке рисунок может выйти за свою рамку — не обрезаем */
+:is(.alive, .tap, .cheer) svg.hero { overflow: visible; }
+
+/* Живой герой: дышит, моргает, парит, качается на волнах */
+.alive .h-float { animation: hFloat 3.2s ease-in-out infinite; transform-origin: 50% 100%; }
+.alive .h-flame { animation: hFlame .22s ease-in-out infinite alternate; transform-origin: 50% 0; }
+.alive .h-twinkle { animation: hTwinkle 1.8s ease-in-out infinite; }
+.alive .h-breathe { animation: hBreathe 2.8s ease-in-out infinite; transform-origin: 50% 100%; }
+.alive .h-eye { animation: hBlink 5s infinite; transform-origin: 50% 50%; }
+.alive .h-tail { animation: hTail 1.9s ease-in-out infinite; transform-origin: 0% 90%; }
+.alive .h-wing { animation: hWing 3s ease-in-out infinite; transform-origin: 100% 85%; }
+.alive .h-wobble { animation: hWobble 3.2s ease-in-out infinite; transform-origin: 50% 100%; }
+.alive .h-peek { animation: hPeek 2.6s ease-in-out infinite; transform-origin: 50% 100%; }
+.alive .h-rock { animation: hRock 3.4s ease-in-out infinite; transform-origin: 50% 85%; }
+.alive .h-wave1 { animation: hWave1 3.6s ease-in-out infinite alternate; }
+.alive .h-wave2 { animation: hWave2 2.8s ease-in-out infinite alternate; }
+.alive .h-flag { animation: hFlag .7s ease-in-out infinite alternate; transform-origin: 0% 50%; }
+@keyframes hFloat { 50% { transform: translateY(-7px); } }
+@keyframes hFlame { from { transform: scaleY(.82); } to { transform: scaleY(1.14); } }
+@keyframes hTwinkle { 50% { opacity: .35; } }
+@keyframes hBreathe { 50% { transform: scale(1.035, 1.05); } }
+@keyframes hBlink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+@keyframes hTail { 50% { transform: rotate(9deg); } }
+@keyframes hWing { 0%, 62%, 100% { transform: rotate(0); } 72%, 88% { transform: rotate(12deg); } 80% { transform: rotate(-3deg); } }
+@keyframes hWobble { 0%, 62%, 100% { transform: rotate(0); } 72% { transform: rotate(-5deg); } 82% { transform: rotate(4deg); } 91% { transform: rotate(-2deg); } }
+@keyframes hPeek { 50% { transform: translateY(-4px) rotate(-3deg); } }
+@keyframes hRock { 0%, 100% { transform: rotate(-2.5deg); } 50% { transform: rotate(2.5deg) translateY(2px); } }
+@keyframes hWave1 { to { transform: translateX(-24px); } }
+@keyframes hWave2 { to { transform: translateX(20px); } }
+@keyframes hFlag { to { transform: scaleX(.8) skewY(6deg); } }
+
+/* Касание героя (.tap) и радость на итоге (.cheer): взлёт, прыжок с огоньком, крен с салютом из пушки */
+.hero-tap { flex: 1 1 0; min-height: 0; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: pointer; outline: none; }
+.hero-tap:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 24px; }
+:is(.tap, .cheer) .h-float { animation: hLaunch 1.2s cubic-bezier(.3, 0, .3, 1); transform-origin: 50% 100%; }
+:is(.tap, .cheer) .h-flame { animation: hFlameBig .1s linear infinite alternate; transform-origin: 50% 0; }
+:is(.tap, .cheer) .h-smoke { animation: hSmoke 1.2s ease-out; transform-origin: 50% 0; }
+:is(.tap, .cheer) .h-float-s { animation: hJump .9s cubic-bezier(.3, 0, .3, 1); transform-origin: 50% 100%; }
+:is(.tap, .cheer) .h-puff { animation: hPuff 1.3s ease-out .3s backwards; transform-origin: 0% 100%; }
+:is(.tap, .cheer) .h-wobble { animation: hEggShake .8s ease-in-out; transform-origin: 50% 100%; }
+:is(.tap, .cheer) .h-peek { animation: hPop .8s cubic-bezier(.3, 0, .3, 1); transform-origin: 50% 100%; }
+:is(.tap, .cheer) .h-crack { animation: hCrack 1.8s ease-out; }
+:is(.tap, .cheer) .h-rock { animation: hRoll 1.3s ease-in-out; transform-origin: 50% 85%; }
+:is(.tap, .cheer) .h-burst { animation: hBurst 1.1s ease-out .15s backwards; transform-origin: 100% 100%; }
+:is(.tap, .cheer) .h-gull { animation: hGull 2.2s linear; }
+.cheer :is(.h-float, .h-float-s, .h-smoke, .h-puff, .h-wobble, .h-peek, .h-crack, .h-rock, .h-burst, .h-gull) { animation-delay: .7s; animation-iteration-count: 3; }
+.cheer .h-puff { animation-delay: 1s; }
+.cheer .h-gull { animation-iteration-count: 2; }
+@keyframes hLaunch { 15% { transform: translateY(6px) scale(1.02, .96); } 55% { transform: translateY(-30px); } 80% { transform: translateY(4px); } }
+@keyframes hPop { 40% { transform: translateY(-16px) rotate(-4deg); } 70% { transform: translateY(2px); } }
+@keyframes hFlameBig { from { transform: scaleY(1.2); } to { transform: scaleY(1.55); } }
+@keyframes hSmoke { 0% { opacity: 0; transform: scale(.4); } 20% { opacity: .95; } 100% { opacity: 0; transform: scale(1.7) translateY(-6px); } }
+@keyframes hJump { 18% { transform: scale(1.06, .9); } 45% { transform: translateY(-30px) scale(.97, 1.04); } 75% { transform: scale(1.04, .95); } }
+@keyframes hPuff { 0% { opacity: 0; transform: scale(.3); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(10px, -14px) scale(1.4); } }
+@keyframes hEggShake { 15%, 55% { transform: rotate(-8deg); } 35%, 75% { transform: rotate(8deg); } }
+@keyframes hCrack { 0% { opacity: 1; stroke-dashoffset: 80; } 30% { stroke-dashoffset: 0; } 80% { opacity: 1; stroke-dashoffset: 0; } 100% { opacity: 0; stroke-dashoffset: 0; } }
+@keyframes hRoll { 20% { transform: rotate(-9deg); } 45% { transform: rotate(7deg); } 70% { transform: rotate(-3deg); } }
+@keyframes hBurst { 0% { opacity: 0; transform: translate(10px, 10px) scale(.2); } 30% { opacity: 1; } 100% { opacity: 0; transform: translate(-16px, -32px) scale(1.5); } }
+@keyframes hGull { 0% { opacity: 0; transform: translateX(-70px); } 12%, 88% { opacity: 1; } 100% { opacity: 0; transform: translate(150px, -10px); } }
+
+/* Расстроенный герой, когда раунд не удался */
+.sad svg.hero { filter: saturate(.7); }
+.sad .h-float { animation: hSad 3.6s ease-in-out infinite; transform-origin: 50% 100%; }
+.sad .h-flame { animation: none; transform: scaleY(.45); transform-origin: 50% 0; }
+.sad .h-float-s { transform: translateY(4px) rotate(-3deg); transform-origin: 50% 100%; }
+.sad .h-eye { animation: none; transform: scaleY(.5); transform-origin: 50% 50%; }
+.sad .h-tail { animation: none; transform: rotate(14deg); transform-origin: 0% 90%; }
+.sad .h-wing { animation: none; transform: rotate(-10deg); transform-origin: 100% 85%; }
+.sad .h-wobble { animation: none; transform: rotate(-4deg); transform-origin: 50% 100%; }
+.sad .h-rock { animation: hList 4s ease-in-out infinite; transform-origin: 50% 85%; }
+.sad .h-flag { animation: none; transform: scaleX(.7); transform-origin: 0% 50%; }
+@keyframes hSad { 0%, 100% { transform: rotate(-6deg) translateY(3px); } 50% { transform: rotate(-3deg) translateY(5px); } }
+@keyframes hList { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(-3deg) translateY(2px); } }
+
+/* Облачко-реплика героя */
+.hero-bubble {
+  position: absolute; top: 2px; left: 50%; z-index: 3; width: max-content; max-width: min(300px, 92%); transform: translateX(-50%);
+  padding: 10px 14px; border-radius: 18px; background: #fff; color: var(--ink); font-size: 16px; font-weight: 900; line-height: 1.3; text-align: center;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .18); pointer-events: none; animation: bubbleIn .35s cubic-bezier(.2, 1.5, .4, 1) backwards;
+}
+.hero-stage:has(.blitz) .hero-bubble { top: 46px; }
+.hero-bubble::after { content: ""; position: absolute; left: 50%; bottom: -9px; margin-left: -9px; border: 9px solid transparent; border-top-color: #fff; border-bottom: 0; }
+.hero-bubble.out { opacity: 0; transform: translateX(-50%) translateY(-6px); transition: opacity .3s, transform .3s; }
+@keyframes bubbleIn { from { opacity: 0; transform: translateX(-50%) translateY(8px) scale(.7); } }
+
+/* Фон дышит: частицы всплывают, облака плывут, комета покачивается */
+.bg-motes { position: absolute; inset: 0; overflow: hidden; }
+.bg-motes span { position: absolute; left: var(--x); bottom: -16px; width: var(--z); height: var(--z); border-radius: 50%; opacity: 0; background: #fff; animation: moteUp var(--d) linear var(--dl) infinite; }
+[data-theme="space"] .bg-motes span { box-shadow: 0 0 6px 2px rgba(200, 190, 255, .6); }
+[data-theme="dragon"] .bg-motes span { background: #fff6c8; box-shadow: 0 0 8px 3px rgba(255, 180, 80, .55); }
+[data-theme="pirate"] .bg-motes span { background: rgba(255, 255, 255, .25); border: 2px solid rgba(255, 255, 255, .8); }
+@keyframes moteUp { 0% { opacity: 0; transform: translate3d(0, 0, 0); } 10% { opacity: .8; } 50% { transform: translate3d(14px, -55vh, 0); } 90% { opacity: .55; } 100% { opacity: 0; transform: translate3d(-6px, -110vh, 0); } }
+.bg .bg-comet { animation: bgComet 7s ease-in-out infinite; }
+.bg .bg-planet-small { animation: bgBob 6s ease-in-out infinite; }
+.bg .bg-planet-big { animation: bgBob 11s ease-in-out infinite; }
+.bg .bg-cloud1 { animation: bgDrift 16s ease-in-out infinite alternate; }
+.bg .bg-cloud2 { animation: bgDrift2 19s ease-in-out infinite alternate; }
+.bg .bg-sun { animation: bgSun 6s ease-in-out infinite; }
+.bg .bg-gulls { animation: bgGulls 9s ease-in-out infinite; }
+.bg .bg-sea { animation: bgSea 5s ease-in-out infinite; }
+@keyframes bgComet { 50% { transform: translate(-14px, 8px); } }
+@keyframes bgBob { 50% { transform: translateY(-8px); } }
+@keyframes bgDrift { to { transform: translateX(28px); } }
+@keyframes bgDrift2 { to { transform: translateX(-24px); } }
+@keyframes bgSun { 50% { transform: scale(1.05); } }
+@keyframes bgGulls { 50% { transform: translate(-20px, 6px); } }
+@keyframes bgSea { 50% { transform: translateY(5px); } }
+
+/* Плавный вход экрана: блоки и карточки появляются по очереди */
+.screen.enter > * { animation: itemIn .36s cubic-bezier(.2, .8, .3, 1) backwards; }
+.screen.enter > :nth-child(2) { animation-delay: .04s; } .screen.enter > :nth-child(3) { animation-delay: .08s; }
+.screen.enter > :nth-child(4) { animation-delay: .12s; } .screen.enter > :nth-child(5) { animation-delay: .16s; }
+.screen.enter > :nth-child(6) { animation-delay: .2s; } .screen.enter > :nth-child(n+7) { animation-delay: .24s; }
+.screen.enter :is(.pkg-list, .tiles, .players, .done-list) > * { animation: itemIn .36s cubic-bezier(.2, .8, .3, 1) backwards; }
+.screen.enter :is(.pkg-list, .tiles, .players) > :nth-child(2) { animation-delay: .1s; } .screen.enter :is(.pkg-list, .tiles, .players) > :nth-child(3) { animation-delay: .15s; }
+.screen.enter :is(.pkg-list, .tiles, .players) > :nth-child(4) { animation-delay: .2s; } .screen.enter :is(.pkg-list, .tiles, .players) > :nth-child(5) { animation-delay: .25s; }
+.screen.enter :is(.pkg-list, .tiles, .players) > :nth-child(6) { animation-delay: .3s; } .screen.enter :is(.pkg-list, .tiles, .players) > :nth-child(n+7) { animation-delay: .35s; }
+@keyframes itemIn { from { opacity: 0; transform: translateY(14px); } }
+
+/* Раунд: дорожка героя к цели темы */
+.trail { position: relative; height: 32px; flex: none; margin: -4px 0; }
+.trail-line { position: absolute; left: 14px; right: 40px; top: 50%; height: 6px; margin-top: -3px; border-radius: 999px; background: repeating-linear-gradient(90deg, var(--track) 0 10px, transparent 10px 16px); }
+.trail-line i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: inherit; background: var(--accent); opacity: .75; transition: width .45s ease; }
+.trail-run { position: absolute; left: 14px; right: 40px; top: 0; bottom: 0; }
+.trail-hero { position: absolute; top: -6px; width: 44px; height: 44px; margin-left: -22px; transition: left .45s cubic-bezier(.3, .7, .3, 1); }
+.trail-hero svg.hero { width: 100%; height: 100%; display: block; }
+[data-theme="space"] .trail-hero { width: 56px; height: 56px; margin-left: -28px; top: -12px; }
+[data-theme="space"] .trail-hero svg.hero { transform: rotate(90deg); }
+.trail-goal { position: absolute; right: 2px; top: 50%; width: 32px; height: 32px; margin-top: -16px; }
+/* Тесный экран: дорожка ниже, а рядом с гонкой за рекордом она не нужна — там своя полоска «Ты» */
+@container (max-height: 720px) {
+  .trail { height: 26px; margin: -6px 0 -4px; display: none; }
+  .trail-hero { top: -5px; width: 36px; height: 36px; margin-left: -18px; }
+  [data-theme="space"] .trail-hero { top: -10px; width: 46px; height: 46px; margin-left: -23px; }
+  .trail-goal { width: 26px; height: 26px; margin-top: -13px; }
+  .screen:has(.segs):not(:has(.race)) .trail { display: block; }
+  .screen:has(.segs):not(:has(.race)) .segs { display: none; }
+  /* пример и вспышка помещаются в низкую карточку */
+  .selfmode .example { font-size: max(40px, min(30cqw, 10.5cqh, 200px)); }
+  .selfmode .eq { font-size: max(26px, min(13cqw, 6.5cqh, 90px)); margin-top: 2px; }
+  .card-badge { top: 6px; padding: 4px 10px; font-size: 13px; }
+  /* в низкой карточке «Верно!» / «Ошибка» закрывали бы пример — хватает рамки, искорок и героя на дорожке */
+  .card-badge.flash-badge { display: none; }
+  .hero-bubble { font-size: 14px; padding: 8px 12px; }
+}
+.trail-goal svg { width: 100%; height: 100%; display: block; }
+.trail.done .trail-goal { transform: scale(1.18); filter: drop-shadow(0 0 5px #ffd34d); }
+.trail-hero.hop { animation: tHop .55s ease-out; }
+.trail-hero.oops { animation: tOops .5s ease-in-out; }
+@keyframes tHop { 40% { transform: translateY(-12px) scale(1.12); } }
+@keyframes tOops { 20%, 60% { transform: translateX(-4px) rotate(-10deg); } 40%, 80% { transform: translateX(4px) rotate(10deg); } }
+
+/* Раунд: искорки на верный ответ, «Серия ×5!», вздрагивание на ошибку */
+.example-card.flash-bad { animation: cardShake .4s ease-in-out; }
+@keyframes cardShake { 20%, 60% { transform: translateX(-7px); } 40%, 80% { transform: translateX(7px); } }
+.sparks { position: absolute; left: 50%; top: 46%; width: 0; height: 0; pointer-events: none; }
+.sparks i { position: absolute; width: 26px; height: 26px; margin: -13px; background: var(--c, #ffc531); clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); opacity: 0; animation: spark .65s ease-out forwards; }
+@keyframes spark { 0% { opacity: 1; transform: rotate(var(--a)) translateX(40px) scale(.5); } 65% { opacity: 1; } 100% { opacity: 0; transform: rotate(var(--a)) translateX(150px) scale(1.15); } }
+.combo {
+  position: absolute; bottom: calc(100% - 12px); right: 8px; z-index: 2; white-space: nowrap; pointer-events: none; transform: rotate(5deg);
+  padding: 5px 14px; border-radius: 999px; background: linear-gradient(180deg, #ffd23f, #ff8a3d); color: #5a2a00;
+  font-size: 20px; font-weight: 900; box-shadow: 0 4px 0 #d4621a; animation: comboPop 1.3s ease-out forwards;
+}
+@keyframes comboPop { 0% { opacity: 0; transform: rotate(5deg) scale(.3); } 15% { opacity: 1; transform: rotate(5deg) scale(1.15); } 30%, 80% { opacity: 1; transform: rotate(5deg) scale(1); } 100% { opacity: 0; transform: rotate(5deg) translateY(-16px); } }
+
+/* Итог: числа набегают, лента и счёт выпрыгивают, сегменты загораются по очереди */
+@property --n { syntax: "<integer>"; inherits: false; initial-value: 0; }
+.num-up { position: relative; display: inline-block; counter-reset: n var(--n); animation: countUp 1s cubic-bezier(.2, .7, .3, 1) .3s backwards; }
+.num-up > span { color: transparent; }
+.num-up::after { content: counter(n); position: absolute; left: 0; right: 0; top: 0; text-align: center; }
+@keyframes countUp { from { --n: 0; } }
+.ribbon { animation: ribbonPop .7s cubic-bezier(.2, 1.6, .4, 1) .25s backwards; }
+@keyframes ribbonPop { from { opacity: 0; transform: rotate(-3deg) scale(0); } }
+.mood-win .score { animation: scorePop .6s cubic-bezier(.2, 1.5, .4, 1) .35s backwards; }
+@keyframes scorePop { from { opacity: 0; transform: scale(.5); } }
+.hero-mini .exam-segs i.ok { animation: segOn .4s ease-out backwards; animation-delay: calc(.5s + var(--i) * .12s); }
+.hero-mini .exam-segs i.new { animation: segNew 1.2s ease-out backwards; animation-delay: calc(.5s + var(--i) * .12s); }
+@keyframes segOn { from { opacity: .2; transform: scaleX(.2); } }
+@keyframes segNew { 0% { opacity: .2; transform: scale(.2); background: #fff; } 40% { transform: scale(1.2, 1.9); box-shadow: 0 0 0 4px rgba(47, 191, 113, .45); } }
+.level-up svg.hero { animation: heroPop .8s cubic-bezier(.2, 1.6, .4, 1) .3s backwards; }
+@keyframes heroPop { from { transform: scale(.4); } }
+.hero-mini { position: relative; }
+.cheer-line { font-size: 17px; font-weight: 900; color: var(--on-bg); margin-top: -2px; animation: itemIn .5s ease-out .5s backwards; }
+.mood-lose .exam-verdict.bad { animation: cardShake .45s ease-in-out .45s backwards; }
+/* повторный показ итога (вернулись из «за что звёзды?») — без праздника и тряски заново */
+.screen.replay :is(.ribbon, .score, .num-up, .exam-segs i, .exam-verdict, .cheer-line, .rain-wrap, svg.hero) { animation: none !important; }
+/* низкий экран: итог плотнее */
+@container (max-height: 720px) {
+  .result { gap: 6px; }
+  .ribbon { font-size: 20px; padding: 7px 22px; margin-top: 6px; }
+  .ribbon::before, .ribbon::after { top: 8px; width: 20px; }
+  .score { font-size: min(20cqw, 12cqh); }
+  .result .sub, .cheer-line { font-size: 14px; }
+  .exam-verdict { padding: 7px 12px; font-size: 14px; }
+  .earn .total { font-size: 22px; }
+  .earn li { font-size: 13px; padding: 1px 0; }
+  .hero-mini svg.hero { width: 80px; height: 88px; }
+  .again { font-size: 13px; }
+}
+
+/* Победа: падающее конфетти и салют темы; неудача — тучка с дождиком над героем */
+.confetti-fall { position: absolute; inset: 0; z-index: 3; overflow: hidden; pointer-events: none; }
+.confetti-fall i { position: absolute; top: -24px; left: var(--x); width: var(--w); height: calc(var(--w) * 1.6); border-radius: 2px; background: var(--c); opacity: 0; animation: fall var(--s) cubic-bezier(.35, .1, .6, 1) var(--d) forwards; }
+@keyframes fall {
+  0% { opacity: 1; transform: translate3d(0, 0, 0) rotate(var(--r)); }
+  25% { transform: translate3d(-12px, 27vh, 0) rotate(calc(var(--r) + 140deg)); }
+  50% { transform: translate3d(14px, 55vh, 0) rotate(calc(var(--r) + 280deg)); }
+  75% { transform: translate3d(-8px, 82vh, 0) rotate(calc(var(--r) + 420deg)); }
+  100% { opacity: 1; transform: translate3d(6px, 112vh, 0) rotate(calc(var(--r) + 560deg)); }
+}
+.win-fx { position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+.win-fx .fw { transform-box: fill-box; transform-origin: center; opacity: 0; animation: fw 1.6s ease-out var(--d) 3 backwards; }
+.win-fx .fly { opacity: 0; animation: flyRocket 2.6s ease-in .6s; }
+.win-fx .rise { opacity: 0; animation: rise 2.8s ease-out var(--d) 2 backwards; }
+.win-fx .coin { opacity: 0; transform-box: fill-box; transform-origin: center; animation: coin var(--s) linear var(--d) 2 backwards; }
+@keyframes fw { 0% { opacity: 0; transform: scale(.15); } 15%, 70% { opacity: 1; } 100% { opacity: 0; transform: scale(1.1); } }
+@keyframes flyRocket { 0% { opacity: 1; transform: translate(-60px, 470px) rotate(50deg); } 100% { opacity: 1; transform: translate(450px, -60px) rotate(50deg); } }
+@keyframes rise { 0% { opacity: 0; transform: translateY(0) scale(.6); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-330px) scale(1.1); } }
+@keyframes coin { 0% { opacity: 1; transform: translateY(-40px) scaleX(1); } 25% { transform: translateY(125px) scaleX(.15); } 50% { transform: translateY(290px) scaleX(1); } 75% { transform: translateY(455px) scaleX(.15); } 100% { opacity: 1; transform: translateY(620px) scaleX(1); } }
+.rain-wrap { position: absolute; left: 8px; top: -10px; width: 70px; z-index: 2; pointer-events: none; animation: cloudIn .7s ease-out .4s backwards; }
+.rain-wrap svg { width: 100%; height: auto; display: block; }
+.rain-cloud .drop { animation: drop 1.1s linear infinite; }
+@keyframes drop { 0% { opacity: 0; transform: translateY(-4px); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(24px); } }
+@keyframes cloudIn { from { opacity: 0; transform: translateY(-14px); } }
+
+/* Выключено: все движения стоят, итог — с обычным салютом */
+.app.no-anim *:not(.shake):not(.toast), .app.no-anim *::before, .app.no-anim *::after { animation: none !important; transition: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .app *, .app *::before, .app *::after { animation: none !important; transition: none !important; }
+}

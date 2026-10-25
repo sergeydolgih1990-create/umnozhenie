@@ -25,7 +25,7 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
     stop();
     const self = U.inputOf(p) === 'keys';
     R = new U.Round(pkg, { keys, next, onShow, onFinish, selfCheck: self });
-    ctx = { pkg, self, typed: '', flash: null, saved: !!(opts && opts.saved), startedAt: null, count: 3, cdPaused: false, swipeAt: 0, ghost: ghostFor(pkg, p, self),
+    ctx = { pkg, self, typed: '', flash: null, fx: null, fxIdx: -1, trail: 0, saved: !!(opts && opts.saved), startedAt: null, count: 3, cdPaused: false, swipeAt: 0, ghost: ghostFor(pkg, p, self),
       exam: opts && opts.exam ? Object.assign({}, opts.exam, U.levels.terms(U.levels.byId(opts.exam.id), opts.exam.level)) : null };
     U.go('round', {}, { replace: ui.screen === 'round' || ui.screen === 'result' });
     acquireWake();
@@ -59,6 +59,7 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
 
   function onShow(item) {
     ctx.typed = '';
+    if (R.items.length > 1) react(R.items.length - 2);
     if (ctx.pkg.voice) U.sound.speak(U.gen.speech(item.k)); else U.sound.next();
     if (ui.screen === 'round') U.render();
   }
@@ -79,6 +80,21 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
     if (ctx.self) { saveRound(); return; }
     U.go('review', {}, { replace: true });
   }
+
+  // Реакция дорожки на ответ: герой подпрыгивает или трясётся, каждые 5 верных подряд — «Серия ×5!».
+  // В диктанте верно или нет не показываем — герой просто идёт вперёд.
+  function react(idx) {
+    if (!R || idx <= ctx.fxIdx || !R.items[idx]) return;
+    ctx.fxIdx = idx;
+    if (ctx.pkg.mode === 'dictation') return;
+    if (R.items[idx].m === null) return;
+    const ok = R.items[idx].m === 1;
+    let run = 0;
+    for (let i = idx; i >= 0 && R.items[i].m === 1; i--) run++;
+    ctx.fx = { ok, at: performance.now(), combo: ok && run >= 5 && run % 5 === 0 ? run : 0 };
+    if (ctx.fx.combo) U.sound.combo();
+  }
+  const fxAge = () => (ctx.fx ? performance.now() - ctx.fx.at : 1e9);
 
   function signature() {
     const c = R && R.cur();
@@ -120,7 +136,7 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
     else if (x.need) t = 'Цель: ' + x.need + ' верных · сейчас ' + okCount();
     else if (x.totalMs) t = 'Цель: без ошибок за ' + F.time(x.totalMs);
     else t = 'Цель: без ошибок, до ' + sec(x.each) + ' на пример';
-    const broke = !x.series && (R.items.some((it) => it.m === 0) || (x.totalMs && R.elapsed > x.totalMs) || R.wasPaused);
+    const broke = !x.series && ((ctx.pkg.mode !== 'dictation' && R.items.some((it) => it.m === 0)) || (x.totalMs && R.elapsed > x.totalMs) || R.wasPaused);
     if (broke) return `<div class="pill ghost goal broke">${ic('cross')}Испытание уже не засчитается — доиграй для тренировки</div>`;
     return `<div class="pill ghost goal">${ic('target')}${t}</div>`;
   }
@@ -149,6 +165,42 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
     return `<div class="pill ghost">${ic('trophy')}Рекорд: ${b.correct} из ${b.total}</div>`;
   }
 
+  // Сколько пути пройдено: доля примеров, времени минуты или цели испытания
+  function trailProgress() {
+    if (!R) return 0;
+    const x = ctx.exam, ok = okCount();
+    if (x && x.series) return Math.min(1, ok / x.series);
+    if (x && x.need) return Math.min(1, ok / x.need);
+    if (R.mode === 'minute') return Math.min(1, R.elapsed / ((ctx.pkg.duration || 60) * 1000));
+    if (R.mode === 'streak') return Math.min(1, ok / Math.max((ctx.ghost && ctx.ghost.best.s.streak) || 0, 10));
+    if (R.total) return Math.min(1, R.items.filter((it, i) => it.m !== null || i < R.items.length - 1).length / R.total);
+    return 0;
+  }
+  const TRAIL_BOX = { space: '40 10 120 210', dragon: '10 30 180 190', pirate: '0 20 200 190' };
+  function trailHTML() {
+    const p = U.player(), age = fxAge(), at = (ctx.trail * 100).toFixed(1) + '%';
+    let cls = '', st = '';
+    if (ctx.fx && age < 600) { cls = ctx.fx.ok ? ' hop' : ' oops'; st = 'animation-delay:-' + Math.round(age) + 'ms;'; }
+    return `<div class="trail${trailProgress() >= 0.999 ? ' done' : ''}" aria-hidden="true"><div class="trail-line"><i id="trk-line" style="width:${at}"></i></div>
+      <div class="trail-run"><span class="trail-hero${cls}" id="trk-hero" style="${st}left:${at}">${A.hero(p.theme, U.levelInfo(p).st).replace('viewBox="0 0 200 220"', 'viewBox="' + (TRAIL_BOX[p.theme] || TRAIL_BOX.space) + '"')}</span></div><span class="trail-goal">${A.goal(p.theme)}</span></div>`;
+  }
+  // Герой едет к новой точке плавно: после перерисовки и с ходом часов
+  function moveTrail(fresh) {
+    if (!R || !ctx) return;
+    const v = trailProgress(), h = document.getElementById('trk-hero');
+    if (!h || Math.abs(v - ctx.trail) < 0.0005) return;
+    if (fresh) void h.offsetWidth;
+    h.style.left = document.getElementById('trk-line').style.width = (v * 100).toFixed(1) + '%';
+    ctx.trail = v;
+  }
+  U.after.round = () => moveTrail(true);
+  function sparksHTML(age) {
+    const cols = ['#ffc531', '#2fbf71', '#ff7ad9', '#4fd1ff'];
+    let s = '';
+    for (let i = 0; i < 10; i++) s += `<i style="--a:${i * 36 + 8}deg;--c:${cols[i % 4]};animation-delay:-${Math.round(age)}ms"></i>`;
+    return `<div class="sparks" aria-hidden="true">${s}</div>`;
+  }
+
   U.screens.round = function () {
     if (!R || !ctx) return '';
     const pkg = ctx.pkg, mode = pkg.mode, n = R.items.length, cur = R.cur();
@@ -174,6 +226,7 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
       html += `<div class="row center-row"><div class="pill">${ic('check')}${ok}</div>${mode === 'minute' ? `<div class="pill">${ic('cross')}${bad}</div>` : ''}</div>`;
     }
 
+    html += trailHTML();
     if (!pkg.hideTime && !counting) {
       const cd = timeBar();
       if (cd) html += `<div class="timer-row"><div class="timer${cd.left < 1000 ? ' hot' : ''}" id="cd-box"><i id="cd-bar" style="width:${cd.left / cd.full * 100}%"></i></div><b id="cd-num">${barLabel(cd)}</b></div>`;
@@ -198,10 +251,14 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
     } else {
       const badge = !ctx.self && U.FIXED_MODES[mode] && cur.m !== null ? `<div class="card-badge${cur.m ? '' : ' bad'}">${ic(cur.m ? 'check' : 'cross')}Отмечено «${cur.m ? 'верно' : 'неверно'}»</div>` : '';
       // короткая вспышка после ответа с клавиатуры; правильный ответ не показываем
-      const flash = ctx.flash ? `<div class="card-badge${ctx.flash.ok ? '' : ' bad'}">${ic(ctx.flash.ok ? 'check' : 'cross')}${ctx.flash.ok ? 'Верно!' : 'Ошибка'}</div>` : '';
+      const flash = ctx.flash ? `<div class="card-badge flash-badge${ctx.flash.ok ? '' : ' bad'}">${ic(ctx.flash.ok ? 'check' : 'cross')}${ctx.flash.ok ? 'Верно!' : 'Ошибка'}</div>` : '';
       const eq = ctx.self ? `<div class="eq">= <span class="typed${ctx.typed ? '' : ' empty'}">${ctx.typed || '?'}</span></div>` : '<div class="eq">= ?</div>';
       const fl = ctx.flash ? (ctx.flash.ok ? ' flash-ok' : ' flash-bad') : '';
-      card = `<div class="example-card${fl}">${badge}${flash}<div class="example">${U.exHTML(cur.k)}</div>${eq}</div>`;
+      // перерисовка во время вспышки продолжает движение с того же места, а не запускает заново
+      const fa = ctx.flash ? performance.now() - ctx.flash.at : 0, cardSt = ctx.flash ? ` style="animation-delay:-${Math.round(fa)}ms"` : '';
+      const sparks = ctx.flash && ctx.flash.ok && fa < 650 ? sparksHTML(fa) : '';
+      const age = fxAge(), combo = ctx.fx && ctx.fx.combo && age < 1300 ? `<div class="combo" style="animation-delay:-${Math.round(age)}ms">Серия ×${ctx.fx.combo}!</div>` : '';
+      card = `<div class="example-card${fl}"${cardSt}>${badge}${flash}<div class="example">${U.exHTML(cur.k)}</div>${eq}${sparks}${combo}</div>`;
     }
     html += card;
 
@@ -245,6 +302,7 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
     }
     const sw = document.getElementById('sw');
     if (sw) sw.textContent = F.time(R.elapsed);
+    if (R.mode === 'minute') moveTrail(false);
     const rt = document.getElementById('race-t');
     if (rt && ctx.ghost) {
       rt.textContent = F.time(R.elapsed);
@@ -257,7 +315,9 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
   /* ---------- Действия во время раунда ---------- */
   P.mark = function (v) {
     if (!R || ctx.self || ctx.count > 0 || ctx.cdPaused) return;
+    const idx = R.items.length - 1;
     if (R.mark(v, performance.now())) {
+      react(idx);
       if (v) U.sound.ok(); else U.sound.bad();
       if (navigator.vibrate) navigator.vibrate(12);
       if (R && !R.finished && ui.screen === 'round') U.render();
@@ -271,18 +331,23 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
     if (v === 'del') ctx.typed = ctx.typed.slice(0, -1);
     else if (ctx.typed.length < 3) ctx.typed = ctx.typed === '0' ? v : ctx.typed + v;
     R.draft = ctx.typed ? Number(ctx.typed) : null;
-    U.render();
+    const box = document.querySelector('.example-card .typed'), line = document.querySelector('.answers-line .typed-in');
+    if (box) { box.textContent = ctx.typed || '?'; box.classList.toggle('empty', !ctx.typed); }
+    else if (line) line.innerHTML = ctx.typed || '&nbsp;';
+    else { U.render(); return; }
+    sig = signature();
   };
   function submit() {
     if (!ctx.typed) return;
-    const val = Number(ctx.typed), dict = ctx.pkg.mode === 'dictation', c = ctx;
+    const val = Number(ctx.typed), dict = ctx.pkg.mode === 'dictation', c = ctx, idx = R.items.length - 1;
     ctx.typed = '';
     const res = R.answer(val, performance.now());
     if (res === null) return;
     if (navigator.vibrate) navigator.vibrate(10);
+    react(idx);
     if (!dict && R) {
       if (res) U.sound.ok(); else U.sound.bad();
-      c.flash = { ok: res };
+      c.flash = { ok: res, at: performance.now() };
       clearTimeout(c.flashTimer);
       c.flashTimer = setTimeout(() => { c.flash = null; if (R && ctx === c && ui.screen === 'round') U.render(); }, 650);
     }
@@ -398,6 +463,35 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
   P.askDiscard = () => U.confirm('Не сохранять раунд?', 'Он не попадёт в историю и рекорды.', 'Не сохранять', () => { ui.review = null; U.go('home', {}, { reset: true }); }, { danger: true, no: 'Вернуться' });
   U.actions.rDiscard = () => P.askDiscard();
 
+  // Настроение итога: победа — без ошибок и в лимит (испытание пройдено, рекорд, кубок);
+  // неудача — ошибки или не уложились; спокойно — серия без рекорда и самый первый раунд с ошибками
+  function isClean(r) {
+    const s = r.s;
+    if (r.mode === 'streak') return false;
+    return r.mode === 'minute' ? s.correct > 0 && !(s.wrong + s.none) : s.total > 0 && s.correct === s.total;
+  }
+  function moodOf(res) {
+    const r = res.round, ex = res.exam;
+    if (ex) return ex.passed ? 'win' : 'lose';
+    if ((res.record && res.prev) || res.cups.length || isClean(r)) return 'win';
+    if (r.mode === 'streak') return 'calm';
+    return res.first ? 'calm' : 'lose';
+  }
+  P.moodOf = moodOf;
+  // Подбадривание после неудачи — по тому, что именно помешало
+  function cheerText(res) {
+    const r = res.round, s = r.s, ex = res.exam, miss = s.total - s.correct;
+    if (ex) {
+      const e = ex.exam, t = U.levels.terms(e, ex.level);
+      if (r.paused) return 'Пауза не засчитывается — попробуй без неё!';
+      if (e.kind === 'series') { const n = t.series - s.streak; return n <= 3 ? 'Почти! До цели всего ' + n + ' ' + U.plural(n, 'верный ответ', 'верных ответа', 'верных ответов') + ' — ещё раз?' : 'Хорошая попытка! Серия растёт — ещё раз?'; }
+      if (e.kind === 'minute' && !(s.wrong + s.none)) { const n = t.need - s.correct; return 'Без ошибок! Не хватило ' + n + ' ' + U.plural(n, 'ответа', 'ответов', 'ответов') + ' — ещё раз?'; }
+      if (!miss) return t.totalMs && s.timeMs > t.totalMs * 1.25 ? 'Без ошибок — молодец! Теперь чуть быстрее — и получится.' : 'Без ошибок — молодец! Чуть-чуть не хватило скорости.';
+    }
+    if (miss === 1) return 'Почти! Всего одна ошибка — ещё раз?';
+    return 'Не беда: каждая попытка — это тренировка. Ещё раз?';
+  }
+
   function saveRound() {
     const rv = ui.review, p = U.player(), d = U.store.data;
     const round = { id: U.store.uid(), player: p.id, pkg: rv.saved ? rv.pkg.id : null, name: (rv.exam ? 'Испытание: ' : '') + rv.pkg.name, mode: rv.pkg.mode,
@@ -407,7 +501,8 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
     U.store.save();
     ui.result = res;
     ui.review = null;
-    if ((res.record && res.prev) || res.levelAfter > res.levelBefore || res.cups.length) U.sound.fanfare(); else U.sound.ok();
+    const mood = moodOf(res);
+    if (mood === 'win') U.sound.fanfare(); else if (mood === 'lose') U.sound.sad(); else U.sound.ok();
     U.go('result', {}, { replace: true });
   }
   U.actions.rSave = saveRound;
@@ -431,11 +526,15 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
     else if (ex && ex.passed) ribbon = 'Испытание пройдено!';
     else if (!ex && res.record && res.prev) ribbon = 'Новый рекорд!';
     else if (!ex && res.first && !r.paused) ribbon = 'Первый результат!';
-    const celebrate = !!ribbon || res.cups.length;
+    const mood = moodOf(res), anim = U.animOn(), fresh = !res.shown;
+    if (!ribbon && isClean(r)) ribbon = 'Без ошибок!';
+    else if (!ribbon && res.cups.length) ribbon = 'Новый кубок!';
+    // число набегает от нуля; само число остаётся в тексте страницы
+    const num = (n) => `<span class="num-up" style="--n:${n}"><span>${n}</span></span>`;
     let score;
-    if (r.mode === 'streak') score = `${s.streak}<small> подряд</small>`;
-    else if (r.mode === 'minute') score = `${s.correct}<small> ${U.plural(s.correct, 'верный', 'верных', 'верных')}</small>`;
-    else score = `${s.correct}<small> из ${s.total}</small>`;
+    if (r.mode === 'streak') score = `${num(s.streak)}<small> подряд</small>`;
+    else if (r.mode === 'minute') score = `${num(s.correct)}<small> ${U.plural(s.correct, 'верный', 'верных', 'верных')}</small>`;
+    else score = `${num(s.correct)}<small> из ${s.total}</small>`;
     const subs = [];
     if (r.mode === 'fast' || r.mode === 'limit' || r.mode === 'training' || r.input === 'keys') subs.push('Время: ' + F.time(s.timeMs));
     if (!ex) {
@@ -459,23 +558,32 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
     const buttons = ex
       ? `<div class="btn-row">${ex.passed ? `<button class="btn btn-light" data-act="home">${ic('home')}Домой</button>` : `<button class="btn btn-light" data-act="again">${ic('replay')}Ещё раз</button>`}<button class="btn btn-primary" data-act="exams">${ic('trophy')}К испытаниям</button></div>`
       : `<div class="btn-row"><button class="btn btn-light" data-act="home">${ic('home')}Домой</button><button class="btn btn-primary" data-act="again">${ic('replay')}Ещё раз</button></div>`;
-    return `<div class="screen">
-      ${celebrate ? A.confetti() : ''}
+    const fx = mood === 'win' ? (anim && fresh ? A.winFx(p.theme) + A.confettiFall() : A.confetti()) : '';
+    const heroCls = 'panel hero-mini alive' + (mood === 'win' && fresh ? ' cheer' : mood === 'lose' ? ' sad' : '') + (levelUp ? ' level-up' : '');
+    return `<div class="screen mood-${mood}${fresh ? '' : ' replay'}">
+      ${fx}
       <div class="result">
         ${ribbon ? `<div class="ribbon">${ribbon}</div>` : ''}
         <div class="pkg-name">${esc(r.name)}${U.VOICE_MODE && r.input === 'keys' ? ' · ответы с клавиатуры' : ''}</div>
         <div class="score">${score}</div>
         ${subs.length ? `<div class="sub">${subs.join(' · ')}</div>` : ''}
+        ${mood === 'lose' ? `<div class="cheer-line">${cheerText(res)}</div>` : ''}
         ${examPanel}
-        <div class="panel earn"><div class="total">+${res.total} ${A.star()}<button class="link-btn help-link" data-act="help">за что звёзды?</button></div>${lines ? `<ul>${lines}</ul>` : ''}</div>
-        <div class="panel hero-mini">${A.hero(p.theme, L.st)}
+        <div class="panel earn"><div class="total"><span>+${num(res.total)}</span>${A.star()}<button class="link-btn help-link" data-act="help">за что звёзды?</button></div>${lines ? `<ul>${lines}</ul>` : ''}</div>
+        <div class="${heroCls}">${mood === 'lose' ? `<div class="rain-wrap">${A.rainCloud()}</div>` : ''}${A.hero(p.theme, L.st)}
           <div class="grow"><b style="font-size:17px">Уровень ${L.lv} · ${T.titles[L.st - 1]}</b>
-            <div class="soft">${status}</div>${U.examSegs(L)}</div>
+            <div class="soft">${status}</div>${U.examSegs(L, ex && ex.newPass && !levelUp ? ex.exam.id : null)}</div>
         </div>
         ${uniq.length ? `<div class="again">Ошибки${uniq.map((x) => `<span class="chip-ex">${x}</span>`).join('')}</div>` : ''}
       </div>
       ${buttons}
     </div>`;
+  };
+  // Радость героя — три прыжка, потом снова спокойное дыхание
+  U.after.result = function () {
+    if (ui.result) ui.result.shown = true;
+    const h = document.querySelector('.hero-mini.cheer');
+    if (h) setTimeout(() => h.classList.remove('cheer'), 7600);
   };
   U.actions.again = () => {
     const r = ui.result && ui.result.round, p = U.player();
@@ -491,7 +599,15 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
   };
 
   /* ---------- Для проверки: раунд с готовыми ответами без ожидания ---------- */
-  P.simulate = function (pkgId, upto, stage, examId) {
+  // Снимок реакции на верный ответ: искорки, прыжок героя и «Серия ×5!»
+  P.demoFx = function () {
+    if (!R || !ctx) return;
+    const now = performance.now();
+    ctx.flash = { ok: true, at: now };
+    ctx.fx = { ok: true, at: now, combo: 5 };
+    U.render();
+  };
+  P.simulate = function (pkgId, upto, stage, examId, clean) {
     if (examId) {
       const e = U.levels.byId(examId), lv = U.levels.level(U.player());
       P.start(U.levels.pkgFor(e, lv), { saved: false, instant: true, exam: { id: e.id, level: lv } });
@@ -505,7 +621,7 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
     };
     for (let i = 0; i < upto && R && !R.finished; i++) {
       t += 1700 + (i % 3) * 400;
-      say(i % 6 === 3 ? 0 : 1);
+      say(!clean && i % 6 === 3 ? 0 : 1);
       if (R && !ctx.self && U.FIXED_MODES[R.mode]) { t = R.cur().shown + R.interval(R.items.length - 1) + 1; R.tick(t); }
       if (R && R.mode === 'streak' && R.pendingEnd !== null) { t += 3100; R.tick(t); }
     }

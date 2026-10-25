@@ -28,8 +28,12 @@
       const act = { pkgForm: 'newPkg', playerForm: 'addPlayer', parent: 'parent' }[sc];
       if (act) U.actions[act]({});
       else if (sc) U.go(sc, Object.fromEntries(q.entries()));
-      if (q.get('play')) U.play.simulate(q.get('play'), Number(q.get('upto') || 0), q.get('stage'));
-      if (q.get('exam')) U.play.simulate(null, Number(q.get('upto') || 0), q.get('stage'), q.get('exam'));
+      if (q.get('play')) U.play.simulate(q.get('play'), Number(q.get('upto') || 0), q.get('stage'), null, q.has('clean'));
+      if (q.get('exam')) U.play.simulate(null, Number(q.get('upto') || 0), q.get('stage'), q.get('exam'), q.has('clean'));
+      if (q.has('fx')) U.play.demoFx();
+      if (q.has('noanim')) { d.settings.anim = false; U.render(); }
+      if (q.has('open')) document.querySelectorAll('details').forEach((x) => { x.open = true; });
+      if (q.has('tap')) setTimeout(() => { const h = document.querySelector('[data-act="heroTap"]'); for (let i = 0; i < Number(q.get('tap') || 1); i++) if (h) h.click(); }, 300);
     }
 
     if ('serviceWorker' in navigator && location.protocol === 'https:') {

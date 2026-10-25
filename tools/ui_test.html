@@ -41,6 +41,14 @@
     check('форма игрока: имя не теряется при смене темы', $('[data-f="name"]').value === 'Тест');
     click('[data-act="savePlayer"]');
     check('игрок создан, главный экран', U.ui.screen === 'home' && D().players.length === 1 && U.player().theme === 'dragon');
+    check('главный экран: герой живой', !!$('.hero-stage .hero-tap.alive svg.hero') && !!$('#bg .bg-motes'));
+    click('[data-act="heroTap"]');
+    const tip1 = $('.hero-bubble') && $('.hero-bubble').textContent;
+    check('касание героя: движение и облачко с подсказкой', !!$('.hero-tap.tap') && /До уровня 2 — ещё 7 испытаний/.test(tip1), tip1);
+    click('[data-act="heroTap"]');
+    check('второе касание — другая подсказка, облачко одно', document.querySelectorAll('.hero-bubble').length === 1 && $('.hero-bubble').textContent !== tip1);
+    await wait(7400);
+    check('облачко само исчезает', !$('.hero-bubble'));
 
     /* Учитель: ритм, отметка, пауза, прерывание */
     click('[data-act="packages"]');
@@ -104,6 +112,7 @@
     check('серия: через 3 с после ошибки — проверка', U.ui.screen === 'review');
     click('[data-act="rSave"]');
     check('серия: результат «3 подряд»', /3\s*подряд/.test($('.score').textContent), $('.score').textContent);
+    check('серия на тренировке без рекорда — спокойный итог', !!$('.screen.mood-calm') && !$('.rain-wrap') && !$('.confetti-fall'));
 
     /* Минута */
     U.go('home', {}, { reset: true }); click('[data-act="packages"]');
@@ -114,6 +123,8 @@
     const mItems = U.ui.review.items.length;
     check('минута: около 30 примеров, все отмечены', mItems >= 29 && mItems <= 31 && U.ui.review.items.every((x) => x.m === 1), mItems);
     click('[data-act="rSave"]');
+    check('минута без ошибок — победа: конфетти, салют, радость героя', !!$('.screen.mood-win') && !!$('.confetti-fall') && !!$('.win-fx') && !!$('.hero-mini.cheer'));
+    check('счёт набегает, а число остаётся в тексте', !!$('.score .num-up') && new RegExp('^' + U.ui.result.round.s.correct).test($('.score').textContent));
 
     /* Диктант: кнопок нет, проверка листка */
     U.go('home', {}, { reset: true }); click('[data-act="packages"]');
@@ -144,6 +155,10 @@
     '1234'.split('').forEach((v) => U.actions.pinKey({ v }));
     '1234'.split('').forEach((v) => U.actions.pinKey({ v }));
     check('PIN сохранён, раздел открыт', U.ui.screen === 'parent' && !!D().settings.pin);
+    click('[data-act="toggleSet"][data-k="anim"]');
+    check('выключатель «Анимации»: всё стоит', D().settings.anim === false && document.getElementById('app').classList.contains('no-anim'));
+    click('[data-act="toggleSet"][data-k="anim"]');
+    check('анимации снова включены', D().settings.anim === true && !document.getElementById('app').classList.contains('no-anim'));
     U.ui.form.prizeName = 'Мороженое'; U.ui.form.prizePrice = '10';
     click('[data-act="savePrize"]');
     check('приз добавлен', D().prizes.length === 1);
@@ -222,18 +237,23 @@
     const typeAns = async (n) => { String(n).split('').forEach((dg) => click(`[data-act="key"][data-v="${dg}"]`)); click('[data-act="key"][data-v="ok"]'); await wait(200); };
     await startRound('school');
     check('сам: вместо кнопок — клавиатура', !!$('.keypad') && !$('[data-act="markOk"]') && document.querySelectorAll('.keypad .key').length === 12);
-    const a0 = U.gen.parse(R().cur().k).ans;
+    const a0 = U.gen.parse(R().cur().k).ans, card0 = $('.example-card');
     String(a0).split('').forEach((dg) => click(`[data-act="key"][data-v="${dg}"]`));
+    check('набор цифр не перерисовывает экран — движения не сбиваются', $('.example-card') === card0);
     check('сам: набранное видно в примере', $('.typed').textContent === String(a0));
     click('[data-act="key"][data-v="ok"]'); await wait(150);
     check('сам: верный ответ — сразу следующий и вспышка «Верно»', R().items.length === 2 && R().items[0].m === 1 && /Верно/.test($('.example-card').textContent));
+    check('дорожка: герой подпрыгнул, искорки', !!$('.trail .trail-hero.hop') && !!$('.example-card .sparks') && !!$('.trail-goal svg'));
     await typeAns(U.gen.parse(R().cur().k).ans + 1);
     check('сам: неверный ответ — ошибка, дальше', R().items[1].m === 0 && R().items[1].a !== undefined && R().items.length === 3);
+    check('дорожка: герой трясётся, карточка вздрагивает', !!$('.trail-hero.oops') && !!$('.example-card.flash-bad') && !$('.sparks'));
     await wait(7300);
     check('сам: не набрал за 7 с — «не успел», дальше', R().items[2].m === 0 && R().items[2].late === 1 && R().items.length === 4);
     document.dispatchEvent(new KeyboardEvent('keydown', { key: String(U.gen.parse(R().cur().k).ans).slice(0, 1), bubbles: true }));
     check('сам: цифры с клавиатуры ПК', $('.typed').textContent.length === 1);
-    for (let i = 0; i < 20 && U.ui.screen === 'round'; i++) await typeAns(U.gen.parse(R().cur().k).ans);
+    let sawCombo = '';
+    for (let i = 0; i < 20 && U.ui.screen === 'round'; i++) { await typeAns(U.gen.parse(R().cur().k).ans); if ($('.combo')) sawCombo += $('.combo').textContent + ' '; }
+    check('5 верных подряд — «Серия ×5!»', /Серия ×5!/.test(sawCombo), sawCombo);
     check('сам: после раунда сразу итог, без проверки', U.ui.screen === 'result');
     const kr = D().rounds[D().rounds.length - 1];
     check('сам: раунд сохранён как «сам»', kr.input === 'keys' && kr.pkg === 'school');
@@ -275,22 +295,29 @@
     check('испытание идёт в темпе уровня', R().pkg.interval === 10 && /Цель/.test($('.goal').textContent));
     for (let i = 0; i < 16 && U.ui.screen === 'round'; i++) await typeAns(U.gen.parse(R().cur().k).ans + (i === 5 ? 1 : 0));
     check('с ошибкой — «Не пройдено: 1 ошибка»', U.ui.screen === 'result' && /Не пройдено: 1 ошибка/.test($('.exam-verdict').textContent));
+    check('неудача: тучка над героем, подбадривание, без салюта', !!$('.screen.mood-lose') && !!$('.hero-mini.sad .rain-wrap') && /Всего одна ошибка/.test($('.cheer-line').textContent) && !$('.confetti-fall') && !$('.ribbon'));
     check('после неудачи — «Ещё раз» и «К испытаниям»', !!$('[data-act="again"]') && !!$('[data-act="exams"]'));
     click('[data-act="again"]'); await wait(3300);
     for (let i = 0; i < 16 && U.ui.screen === 'round'; i++) await typeAns(U.gen.parse(R().cur().k).ans);
     check('без ошибок — «Испытание пройдено!»', /Испытание пройдено/.test($('.ribbon').textContent) && /1 из 7/.test(document.getElementById('view').textContent));
     check('за испытание +15 звёзд', /Испытание «Школьный блиц» пройдено/.test($('.earn').textContent));
+    check('пройдено: победа и вспышка нового сегмента', !!$('.screen.mood-win') && !!$('.confetti-fall') && document.querySelectorAll('.hero-mini .exam-segs i.new').length === 1);
+    click('.help-link'); await wait(200); U.back(); await wait(300);
+    check('вернулись из «за что звёзды?» — итог без повторного праздника', U.ui.screen === 'result' && !!$('.screen.replay') && !$('.confetti-fall') && !$('.hero-mini.cheer'));
     const me = U.player();
     ['fast', 'mulonly', 'divonly', 'minute', 'streak'].forEach((id) => { me.exams[1][id] = { at: Date.now(), round: null }; });
     click('[data-act="exams"]');
-    check('6 из 7 отмечены пройденными', document.querySelectorAll('.pkg-card.passed').length === 6);
+    check('6 пройденных — в свёрнутом блоке, сверху одно непройденное', document.querySelectorAll('.done-block .done-row').length === 6 && !$('.done-block').open && document.querySelectorAll('.pkg-card').length === 1 && /Пройдено на этом уровне: 6 из 7/.test($('.done-block summary').textContent));
+    $('.done-block summary').click();
+    check('блок раскрывается, пройденное можно повторить', $('.done-block').open && !!$('.done-row[data-act="exam"][data-id="school"]'));
     click('[data-act="exam"][data-id="dictation"]'); await wait(3300);
     check('диктант-испытание: по 12 с (темп + 2)', R().pkg.interval === 12);
     for (let i = 0; i < 16 && U.ui.screen === 'round'; i++) await typeAns(U.gen.parse(R().cur().k).ans);
     check('все 7 — «Новый уровень!» и темп 9 с', /Новый уровень/.test($('.ribbon').textContent) && /Открыт уровень 2: темп 9 с/.test($('.exam-verdict').textContent));
+    check('новый уровень: герой выпрыгивает', !!$('.hero-mini.level-up') && !!$('.hero-mini.cheer'));
     check('уровень игрока — 2', U.levels.level(U.player()) === 2);
     click('[data-act="exams"]');
-    check('испытания 2-го уровня: по 9 с, ни одно не пройдено', /9 секунд на пример/.test($('.panel h3').textContent) && document.querySelectorAll('.pkg-card.passed').length === 0);
+    check('испытания 2-го уровня: по 9 с, ни одно не пройдено', /9 секунд на пример/.test($('.panel h3').textContent) && !$('.done-block') && document.querySelectorAll('.pkg-card').length === 7);
     U.go('home', {}, { reset: true });
     check('главный экран: уровень 2', /Уровень 2/.test($('.level-card').textContent));
   } catch (e) {

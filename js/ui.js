@@ -19,8 +19,14 @@
   };
   U.player = () => { const d = U.store.data; return d.players.find((p) => p.id === d.current) || null; };
 
-  let appEl, bgEl, viewEl, modalEl, bgTheme = null;
+  let appEl, bgEl, viewEl, modalEl, bgTheme = null, lastScreen = null, enterAt = 0;
   const theme = () => ui.themeOverride || (U.player() && U.player().theme) || 'space';
+  // Анимации: выключатель у родителей и системная настройка «уменьшить движение»
+  U.animOn = function () {
+    const st = U.store && U.store.data && U.store.data.settings;
+    if (st && st.anim === false) return false;
+    return !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  };
 
   U.render = function () {
     if (ui.screen !== 'playerForm') ui.themeOverride = null;
@@ -28,9 +34,14 @@
     const t = theme();
     appEl.dataset.theme = t;
     appEl.dataset.screen = ui.screen;
+    appEl.classList.toggle('no-anim', !U.animOn());
     if (bgTheme !== t) { bgEl.innerHTML = U.art.bg(t); bgTheme = t; }
     const keep = ui.keepScroll ? (viewEl.querySelector('.screen.scroll') || {}).scrollTop : 0;
     viewEl.innerHTML = html;
+    // вход нового экрана — только при смене экрана, не при каждой перерисовке
+    // вторая перерисовка сразу следом (отсчёт раунда) вход не обрывает
+    if (ui.screen !== lastScreen) { enterAt = performance.now(); lastScreen = ui.screen; }
+    if (performance.now() - enterAt < 120) { const sc = viewEl.querySelector('.screen'); if (sc) sc.classList.add('enter'); }
     if (keep) { const sc = viewEl.querySelector('.screen.scroll'); if (sc) sc.scrollTop = keep; }
     ui.keepScroll = false;
     renderModal();
@@ -183,6 +194,7 @@
       if (e.key === 'Enter' && ui.modal && ui.modal.type === 'resetPin') U.actions.pinResetGo();
       return;
     }
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[role="button"][data-act]')) { e.target.click(); e.preventDefault(); return; }
     if (ui.screen === 'round') { U.play.key(e); return; }
     if (e.key === 'Escape') { if (ui.modal) closeModal(); else if (ui.stack.length) U.back(); }
   }

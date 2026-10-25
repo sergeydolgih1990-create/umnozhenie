@@ -21,10 +21,13 @@
     const lv = U.levels.level(p), pr = U.levels.progress(p, lv);
     return { lv, st: p && p.master ? 5 : U.stageOf(lv), passed: pr.passed, of: pr.of, done: pr.done, pace: U.levels.pace(lv), master: !!(p && p.master) };
   };
-  // Полоска из 7 сегментов: какие испытания уровня пройдены
-  const examSegs = (L) => `<div class="exam-segs">${U.levels.EXAMS.map((e) => `<i class="${L.done[e.id] || L.master ? 'ok' : ''}"></i>`).join('')}</div>`;
+  // Полоска из 7 сегментов: какие испытания уровня пройдены; fresh — только что пройденное, на итоге оно вспыхивает
+  const examSegs = (L, fresh) => `<div class="exam-segs">${U.levels.EXAMS.map((e, i) => `<i class="${L.done[e.id] || L.master ? 'ok' : ''}${e.id === fresh ? ' new' : ''}" style="--i:${i}"></i>`).join('')}</div>`;
   U.examSegs = examSegs;
   U.levelInfo = levelInfo;
+  // «3 секунды», «5 секунд», «4,5 секунды» — у дробного числа всегда «секунды»
+  const secWord = (x) => (Number.isInteger(x) ? pl(x, 'секунда', 'секунды', 'секунд') : 'секунды');
+  U.secWord = secWord;
   const exHTML = (k) => { const p = U.gen.parts(k); return `${p[0]} <span class="op">${p[1]}</span> ${p[2]}`; };
   U.exHTML = exHTML;
 
@@ -35,7 +38,7 @@
     const d = D(), ps = d.players;
     const cards = ps.map((p) => {
       const L = levelInfo(p);
-      return `<button class="player-card" data-theme="${p.theme}" data-act="pickPlayer" data-id="${p.id}">
+      return `<button class="player-card alive" data-theme="${p.theme}" data-act="pickPlayer" data-id="${p.id}">
         ${A.hero(p.theme, L.st)}<span class="pc-name"><span>${p.avatar}</span>${esc(p.name)}</span>
         <span class="pc-sub">Уровень ${L.lv} · ${U.THEMES[p.theme].titles[L.st - 1]}</span></button>`;
     }).join('');
@@ -124,7 +127,7 @@
         <button class="icon-btn" data-act="parent" aria-label="Для родителей">${ic('lock')}</button>
       </div>
       ${needBackup() ? `<button class="banner" data-act="backup">${ic('download')}<span>${n} ${pl(n, 'раунд', 'раунда', 'раундов')} без резервной копии. <b>Сохранить копию</b></span></button>` : ''}
-      <div class="hero-stage">${blitzChip(p)}${A.hero(p.theme, L.st)}<div class="hero-caption">${T.hero[L.st - 1]}</div></div>
+      <div class="hero-stage">${blitzChip(p)}<div class="hero-tap alive" data-act="heroTap" role="button" tabindex="0" aria-label="Коснуться героя">${A.hero(p.theme, L.st)}</div><div class="hero-caption">${T.hero[L.st - 1]}</div></div>
       <button class="panel level-card" data-act="exams">
         <div class="between"><b style="font-size:18px">Уровень ${L.lv}${L.master ? ' ✓' : ''}</b><span class="soft">${L.master ? 'все уровни пройдены' : 'испытания ' + L.passed + ' из ' + L.of + ' · по ' + U.num(L.pace) + ' с'}</span></div>
         ${examSegs(L)}
@@ -140,6 +143,70 @@
     </div>`;
   };
   U.actions.home = () => U.go('home', {}, { reset: true });
+
+  /* ---------- Касание героя: движение, звук и облачко с подсказкой ---------- */
+  const PHRASES = {
+    space: ['Пристегнись — летим к звёздам!', 'Двигатели прогреты, жду команду!'],
+    dragon: ['Р-р-р! Я тоже учу таблицу!', 'Ой, щекотно! Давай решать примеры!'],
+    egg: ['Тук-тук! Я скоро вылуплюсь…', 'Мне тепло в гнезде. Решай примеры — и я вылуплюсь!'],
+    pirate: ['Йо-хо-хо! Полный вперёд!', 'Свистать всех наверх — пора на испытание!']
+  };
+  // Подсказки по делу вперемешку с фразами героя; каждое касание — следующая
+  function heroTips(p) {
+    const d = D(), Lv = U.levels, L = levelInfo(p), lv = L.lv, out = [], q = S.quest(d, p, Date.now());
+    const say = PHRASES[p.theme === 'dragon' && L.st === 1 ? 'egg' : p.theme] || PHRASES.space;
+    const left = L.of - L.passed, todo = Lv.EXAMS.find((e) => !L.done[e.id]);
+    const ex = left + ' ' + pl(left, 'испытание', 'испытания', 'испытаний');
+    out.push(L.master ? 'Все ' + Lv.MAX + ' уровней пройдены — ты настоящий чемпион!'
+      : lv === Lv.MAX ? 'Последний уровень! Осталось ' + ex + ' — и ты чемпион!'
+        : 'До уровня ' + (lv + 1) + ' — ещё ' + ex + '!');
+    if (todo && !L.master) out.push('Попробуй испытание «' + todo.name + '»!');
+    out.push(say[0]);
+    if (!q.awarded) {
+      const n = Math.max(0, q.need - q.trainings), rounds = 'сыграй ещё ' + n + ' ' + pl(n, 'раунд', 'раунда', 'раундов');
+      out.push('Задание недели: ' + (n && !q.clean ? rounds + ' и пройди «Школьный блиц» без ошибок.' : n ? rounds + '.' : 'пройди «Школьный блиц» без ошибок.'));
+    } else out.push('Задание недели выполнено — так держать!');
+    const stars = p.stars || 0, prizes = d.prizes.slice().sort((a, b) => a.price - b.price);
+    const can = prizes.filter((z) => z.price <= stars).pop(), next = prizes.find((z) => z.price > stars);
+    if (can) out.push('Звёзд хватает на «' + can.name + '»! Загляни в «Призы».');
+    else if (next) out.push('До приза «' + next.name + '» — ещё ' + U.helpStars(next.price - stars) + '.');
+    out.push(say[1]);
+    const T = Lv.pace(lv);
+    out.push(lv < 6 ? 'С 6-го уровня темп как в школе — 5 секунд на пример.' : T === 5 ? 'Ты отвечаешь в школьном темпе — 5 секунд на пример!' : 'Ты быстрее школьного темпа — ' + U.num(T) + ' с на пример!');
+    const tr = U.STD_PACKAGES.find((x) => x.mode === 'training'), weak = tr ? S.weakList(d, p.id, tr.max).length : 0;
+    if (weak) out.push('Трудных примеров: ' + weak + '. Повтори их в «Работе над ошибками» — там звёзды ×2.');
+    return out;
+  }
+  U.heroTips = heroTips;
+  let tipN = 0, tapTimer = 0, bubbleTimer = 0;
+  U.actions.heroTap = (ds, el) => {
+    const p = U.player();
+    if (!p || !el) return;
+    U.sound.tap(p.theme, levelInfo(p).st);
+    if (U.animOn()) {
+      el.classList.remove('tap');
+      void el.offsetWidth;                                   // перезапуск движения при повторном касании
+      el.classList.add('tap');
+      clearTimeout(tapTimer);
+      tapTimer = setTimeout(() => el.classList.remove('tap'), 2300);
+    }
+    const tips = heroTips(p), stage = el.closest('.hero-stage') || el.parentNode, text = tips[tipN++ % tips.length];
+    const old = stage.querySelector('.hero-bubble');
+    if (old) old.remove();
+    const b = document.createElement('div');
+    b.className = 'hero-bubble';
+    b.setAttribute('role', 'status');
+    b.style.visibility = 'hidden';
+    stage.appendChild(b);
+    b.textContent = text;
+    const body = el.querySelector('.h-float, .h-float-s, .h-rock, .h-wobble') || el, chip = stage.querySelector('.blitz');
+    const sr = stage.getBoundingClientRect(), top = body.getBoundingClientRect().top - sr.top;
+    const min = chip ? chip.offsetTop + chip.offsetHeight + 6 : 0;
+    b.style.top = Math.max(min, Math.round(top - b.offsetHeight - 12)) + 'px';
+    b.style.visibility = '';
+    clearTimeout(bubbleTimer);
+    bubbleTimer = setTimeout(() => { b.classList.add('out'); setTimeout(() => b.remove(), 320); }, Math.min(7000, 2500 + text.length * 60));
+  };
   U.actions.backup = () => { const name = U.store.exportFile(); U.toast('Копия сохранена: ' + name); U.refresh(); };
 
   /* ---------- Выбор пакета ---------- */
@@ -170,20 +237,29 @@
   U.screens.exams = function () {
     const p = U.player(), Lv = U.levels, L = levelInfo(p), lv = L.lv;
     const left = L.of - L.passed;
-    const next = lv < Lv.MAX ? `Пройди все ${L.of} без ошибок и уложись во время — откроется уровень ${lv + 1}: ${U.num(Lv.pace(lv + 1))} секунд на пример.${left ? ' Осталось ' + left + ' ' + pl(left, 'испытание', 'испытания', 'испытаний') + '.' : ''}` : 'Это последний уровень — пройди все испытания без ошибок и уложись во время.';
+    const next = lv < Lv.MAX ? `Пройди все ${L.of} без ошибок и уложись во время — откроется уровень ${lv + 1}: ${U.num(Lv.pace(lv + 1))} ${secWord(Lv.pace(lv + 1))} на пример.${left ? ' Осталось ' + left + ' ' + pl(left, 'испытание', 'испытания', 'испытаний') + '.' : ''}` : 'Это последний уровень — пройди все испытания без ошибок и уложись во время.';
     const head = L.master
       ? `<div class="panel"><h3>${ic('trophy')}Все ${Lv.MAX} уровней пройдены!</h3><div class="soft">Испытания 10-го уровня можно проходить снова — для тренировки.</div></div>`
-      : `<div class="panel"><h3>${ic('trophy')}Уровень ${lv} · ${U.num(L.pace)} секунд на пример</h3><div class="soft">${next}</div>${examSegs(L)}</div>`;
-    const cards = Lv.EXAMS.map((e) => {
-      const M = U.MODES[e.mode], ok = L.done[e.id];
-      return `<button class="pkg-card${ok ? ' passed' : ''}" data-act="exam" data-id="${e.id}">
-        <span class="pkg-ic" style="background:${ok ? 'var(--ok)' : M.color}">${ic(ok ? 'check' : M.icon)}</span>
-        <span class="pkg-body"><b>${e.name}</b><span>${Lv.describe(e, lv)}</span>${ok ? `<span class="pkg-rec ok">пройдено ${F.date(ok.at)}</span>` : ''}</span>
+      : `<div class="panel"><h3>${ic('trophy')}Уровень ${lv} · ${U.num(L.pace)} ${secWord(L.pace)} на пример</h3><div class="soft">${next}</div>${examSegs(L)}</div>`;
+    // Непройденные — крупными карточками сверху; пройденные — свёрнутым списком, их можно повторить
+    const todo = Lv.EXAMS.filter((e) => !L.done[e.id]), done = Lv.EXAMS.filter((e) => L.done[e.id]);
+    const cards = todo.map((e) => {
+      const M = U.MODES[e.mode];
+      return `<button class="pkg-card" data-act="exam" data-id="${e.id}">
+        <span class="pkg-ic" style="background:${M.color}">${ic(M.icon)}</span>
+        <span class="pkg-body"><b>${e.name}</b><span>${Lv.describe(e, lv)}</span></span>
         <span class="pkg-go">${ic('play')}</span></button>`;
     }).join('');
+    const rows = done.map((e) => `<button class="done-row" data-act="exam" data-id="${e.id}">
+        <span class="done-ic">${ic('check')}</span><span class="grow"><b>${e.name}</b><span>пройдено ${F.date(L.done[e.id].at)}</span></span>
+        <span class="done-go">${ic('play')}ещё раз</span></button>`).join('');
+    const doneBlock = done.length ? `<details class="done-block"${todo.length ? '' : ' open'}>
+        <summary>${ic('check')}Пройдено на этом уровне: ${done.length} из ${L.of}</summary>
+        <div class="done-list">${rows}</div><div class="soft">Повтор — для тренировки, зачёт уже есть.</div></details>` : '';
     return `<div class="screen scroll">${topbar('Испытания', { right: starsPill(p) })}
       ${head}
-      <div class="pkg-list">${cards}</div>
+      ${cards ? `<div class="pkg-list">${cards}</div>` : ''}
+      ${doneBlock}
       <button class="btn btn-light" data-act="help">${ic('question')}Все уровни и условия</button>
     </div>`;
   };
@@ -525,6 +601,8 @@
     const st = d.settings;
     html += sec('Настройки', 'gear', `
       <div class="switch"><span>Звуки</span><button class="${st.sound !== false ? 'on' : ''}" data-act="toggleSet" data-k="sound" aria-label="Звуки"></button></div>
+      <div class="switch"><span>Анимации — герой двигается, салют на победу</span><button class="${st.anim !== false ? 'on' : ''}" data-act="toggleSet" data-k="anim" aria-label="Анимации"></button></div>
+      ${window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? '<div class="muted">В настройках устройства включено «уменьшить движение» — поэтому анимации сейчас не работают.</div>' : ''}
       <div class="switch"><span>Семейный рейтинг — рекорды всех игроков вместе</span><button class="${st.family ? 'on' : ''}" data-act="toggleSet" data-k="family" aria-label="Семейный рейтинг"></button></div>
       <div class="form-row"><button class="btn btn-light btn-sm" data-act="testVoice">${ic('sound')}Проверить голос</button><button class="btn btn-light btn-sm" data-act="changePin">${ic('lock')}Сменить PIN</button></div>`);
 
@@ -598,7 +676,8 @@
     const d = D(), pk = d.packages.find((x) => x.id === ds.id);
     U.confirm('Удалить пакет «' + esc(pk.name) + '»?', 'Сыгранные раунды останутся в истории.', 'Удалить', () => { d.packages = d.packages.filter((x) => x.id !== pk.id); U.store.save(); U.refresh(); }, { danger: true });
   };
-  U.actions.toggleSet = (ds) => { const st = D().settings; st[ds.k] = ds.k === 'sound' ? st.sound === false : !st[ds.k]; U.store.save(); U.refresh(); };
+  // звуки и анимации включены, пока их явно не выключили
+  U.actions.toggleSet = (ds) => { const st = D().settings; st[ds.k] = ds.k === 'sound' || ds.k === 'anim' ? st[ds.k] === false : !st[ds.k]; U.store.save(); U.refresh(); };
   U.actions.testVoice = () => { if (!U.sound.canSpeak()) { U.toast('Этот браузер не умеет читать вслух'); return; } U.sound.speak('Семь умножить на восемь'); if (!U.sound.hasRussian()) U.toast('Русского голоса не нашлось — будет читать голос по умолчанию'); };
   U.actions.changePin = () => U.modal({ type: 'pin', mode: 'new', title: 'Новый PIN из 4 цифр', sub: 'Старый перестанет действовать', val: '', onOk: () => {} });
   U.actions.wipe = () => U.confirm('Удалить все данные?', 'Игроки, история, рекорды и призы удалятся с этого устройства. Сначала лучше скачать копию.', 'Удалить всё', () =>

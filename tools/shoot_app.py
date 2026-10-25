@@ -46,6 +46,21 @@ SHOTS.update({
     "exams-pirate": ("player=p3&screen=exams", PHONE),
     "exam-round": ("player=p2&exam=mulonly&upto=5", PHONE),
     "exam-fail": ("player=p1&exam=school&upto=16&stage=result", PHONE),
+    "win-space": ("player=p1&exam=school&upto=16&stage=result&clean", PHONE),
+    "win-dragon": ("player=p2&play=school&upto=16&stage=result&clean", PHONE),
+    "win-pirate": ("player=p3&exam=mulonly&upto=20&stage=result&clean", PHONE),
+    "exams-dragon": ("player=p2&screen=exams&open", PHONE),
+    "tap-space": ("player=p1&tap=1", PHONE, 900),
+    "tap-dragon": ("player=p2&tap=3", PHONE, 900),
+    "tap-pirate": ("player=p3&tap=2", PHONE, 1100),
+    "fx-combo": ("player=p2&input=keys&play=school&upto=5&clean&fx", PHONE, 60),
+    "win-early": ("player=p3&exam=mulonly&upto=20&stage=result&clean", PHONE, 1700),
+    "small-lose": ("player=p1&exam=school&upto=16&stage=result", "360,640"),
+    "small-win": ("player=p3&exam=mulonly&upto=20&stage=result&clean", "360,640"),
+    "small-minute": ("player=p3&input=keys&play=minute&upto=9", "360,640"),
+    "small-school": ("player=p1&input=keys&play=school&upto=5&clean&fx", "360,640", 60),
+    "small-tap": ("player=p1&tap=1", "360,640", 900),
+    "win-noanim": ("player=p1&exam=school&upto=16&stage=result&clean&noanim", PHONE),
     "exam-pc": ("player=p3&screen=exams", PC),
     "help-pirate": ("player=p3&screen=help", TABLET),
     "round-tablet": ("player=p2&play=school&upto=6", TABLET),
@@ -55,7 +70,7 @@ SHOTS.update({
 })
 
 
-def shoot(name, query, size):
+def shoot(name, query, size, budget=4000):
     OUT.mkdir(parents=True, exist_ok=True)
     target = OUT / f"app-{name}.png"
     w, h = size.split(",")
@@ -63,7 +78,7 @@ def shoot(name, query, size):
     with tempfile.TemporaryDirectory() as profile:
         subprocess.run([
             EDGE, "--headless=new", "--disable-gpu", "--hide-scrollbars", "--no-first-run", "--mute-audio",
-            f"--user-data-dir={profile}", f"--window-size={size}", "--virtual-time-budget=4000",
+            f"--user-data-dir={profile}", f"--window-size={size}", f"--virtual-time-budget={budget}",
             f"--screenshot={target}", url,
         ], check=True, capture_output=True, timeout=90)
     print(target)
