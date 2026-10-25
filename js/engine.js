@@ -19,6 +19,7 @@
     this.wasPaused = false;
     this.finished = false;
     this.pendingEnd = null;
+    this.self = !!opts.selfCheck;    // ребёнок набирает ответ сам, проверка автоматическая
     this.onShow = opts.onShow || null;
     this.onFinish = opts.onFinish || null;
   }
@@ -46,6 +47,7 @@
       return;
     }
     const k = this.list ? this.list[i] : this.next();
+    this.draft = null;
     this.items.push({ k, m: null, t: null, at: null, shown: at === undefined ? this.elapsed : at });
     if (this.onShow) this.onShow(this.cur(), i);
   };
@@ -75,16 +77,30 @@
       while (!this.finished && guard++ < 100) {
         const cc = this.cur(), end = cc.shown + this.interval(this.items.length - 1);
         if (this.elapsed < end) break;
+        if (this.self && cc.m === null) this.settle(cc, end);
         this.show(end);
       }
       return;
     }
     const lim = this.limitMs();
     if (lim && c && c.m === null && this.elapsed - c.shown >= lim) {
-      c.m = 0; c.late = 1; c.t = lim; c.at = c.shown + lim;
-      if (this.mode === 'streak') this.finish();
+      if (this.self) this.settle(c, c.shown + lim);
+      else { c.m = 0; c.late = 1; c.t = lim; c.at = c.shown + lim; }
+      if (this.mode === 'streak' && c.m !== 1) this.finish();
       else this.show(c.at);
     }
+  };
+
+  // Время вышло, а ответ с клавиатуры не подтверждён: набранное засчитывается как ответ,
+  // пустое поле — «не успел» (ошибка). draft выставляет экран, пока ребёнок набирает.
+  P.settle = function (c, at) {
+    if (this.draft !== null && this.draft !== undefined) {
+      c.a = this.draft;
+      c.m = this.draft === U.gen.parse(c.k).ans ? 1 : 0;
+    } else { c.m = 0; c.late = 1; }
+    c.t = at - c.shown;
+    c.at = at;
+    this.draft = null;
   };
 
   // v: 1 — верно, 0 — неверно
@@ -103,6 +119,22 @@
     if (this.mode === 'streak' && v === 0) { this.pendingEnd = this.elapsed + UNDO_MS; return true; }
     this.show();
     return true;
+  };
+
+  // Ответ ребёнка с клавиатуры: проверка сразу, следующий пример — сразу (во всех режимах).
+  // Возвращает 1 / 0 или null, если ответ сейчас не принимается.
+  P.answer = function (value, t) {
+    if (!this.running || this.finished || this.paused || this.pendingEnd !== null) return null;
+    this.tick(t);
+    if (this.finished) return null;
+    const c = this.cur(), v = Number(value);
+    c.a = v;
+    c.m = v === U.gen.parse(c.k).ans ? 1 : 0;
+    c.t = this.elapsed - c.shown;
+    c.at = this.elapsed;
+    const res = c.m;
+    if (this.mode === 'streak' && !res) this.finish(); else this.show();
+    return res;
   };
 
   // «Нажали по ошибке» в серии: ответ верный, серия продолжается

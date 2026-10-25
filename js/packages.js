@@ -16,18 +16,19 @@
   U.STREAM_MODES = { minute: 1, streak: 1 };
 
   const BASE = { std: true, tables: [2, 3, 4, 5, 6, 7, 8, 9], voice: false, hideTime: false };
+  // Темп мягче школьного на 2 с (Сергей, 25.10.2026); «Блиц-мастер» — как раз школьные 5 с
   U.STD_PACKAGES = [
-    { id: 'school', name: 'Школьный блиц', mode: 'teacher', mul: 8, div: 8, interval: 5 },
-    { id: 'big', name: 'Большой блиц', mode: 'teacher', mul: 10, div: 10, interval: 5 },
-    { id: 'master', name: 'Блиц-мастер', mode: 'teacher', mul: 10, div: 10, interval: 3 },
+    { id: 'school', name: 'Школьный блиц', mode: 'teacher', mul: 8, div: 8, interval: 7 },
+    { id: 'big', name: 'Большой блиц', mode: 'teacher', mul: 10, div: 10, interval: 7 },
+    { id: 'master', name: 'Блиц-мастер', mode: 'teacher', mul: 10, div: 10, interval: 5 },
     { id: 'fast', name: 'Быстрый круг', mode: 'fast', mul: 10, div: 10 },
     { id: 'mulonly', name: 'Только умножение', mode: 'fast', mul: 20, div: 0 },
     { id: 'divonly', name: 'Только деление', mode: 'fast', mul: 0, div: 20 },
-    { id: 'limit', name: 'Лимит', mode: 'limit', mul: 10, div: 10, interval: 4 },
-    { id: 'accel', name: 'Ускорение', mode: 'accel', mul: 10, div: 10, from: 6, to: 3 },
+    { id: 'limit', name: 'Лимит', mode: 'limit', mul: 10, div: 10, interval: 6 },
+    { id: 'accel', name: 'Ускорение', mode: 'accel', mul: 10, div: 10, from: 8, to: 5 },
     { id: 'minute', name: 'Минута', mode: 'minute', mul: 1, div: 1, duration: 60 },
-    { id: 'streak', name: 'До первой ошибки', mode: 'streak', mul: 1, div: 1, interval: 5 },
-    { id: 'dictation', name: 'Диктант на слух', mode: 'dictation', mul: 8, div: 8, interval: 5, voice: true },
+    { id: 'streak', name: 'До первой ошибки', mode: 'streak', mul: 1, div: 1, interval: 7 },
+    { id: 'dictation', name: 'Диктант на слух', mode: 'dictation', mul: 8, div: 8, interval: 7, voice: true },
     { id: 'training', name: 'Работа над ошибками', mode: 'training', max: 16 }
   ].map((p) => Object.assign({}, BASE, p));
 

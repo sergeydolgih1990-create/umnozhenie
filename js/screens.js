@@ -50,7 +50,7 @@
   };
   U.actions.editPlayer = (ds) => {
     const p = D().players.find((x) => x.id === ds.id);
-    if (p) U.go('playerForm', { id: p.id }, { form: { name: p.name, avatar: p.avatar, theme: p.theme } });
+    if (p) U.go('playerForm', { id: p.id }, { form: { name: p.name, avatar: p.avatar, theme: p.theme, input: p.input === 'keys' ? 'keys' : 'voice' } });
   };
 
   U.screens.playerForm = function (pr) {
@@ -63,21 +63,24 @@
         <label class="field"><span>Имя</span><input class="inp" data-f="name" maxlength="16" value="${esc(f.name)}" placeholder="Как зовут?" autocomplete="off"></label>
         <div class="field"><span>Картинка</span><div class="avatar-grid">${av}</div></div>
         <div class="field"><span>Тема и герой</span><div class="theme-pick">${th}</div></div>
+        <div class="field"><span>Способ ответа</span>${inputToggle(f.input || 'voice', 'fsetInput')}
+          <span class="muted">Можно поменять и перед игрой — на экране выбора пакета.</span></div>
         ${f.error ? `<div class="err">${f.error}</div>` : ''}
       </div>
       <button class="btn btn-primary btn-big" data-act="savePlayer">${ic('check')}Сохранить</button>
     </div>`;
   };
   U.actions.fset = (ds) => { ui.form[ds.k] = ds.v; U.refresh(); };
+  U.actions.fsetInput = (ds) => { ui.form.input = ds.v; U.refresh(); };
   U.actions.savePlayer = () => {
     const f = ui.form, name = String(f.name || '').trim(), d = D();
     if (!name) { f.error = 'Напишите имя'; U.refresh(); return; }
     ui.themeOverride = null;
     if (ui.params.id) {
       const p = d.players.find((x) => x.id === ui.params.id);
-      Object.assign(p, { name, avatar: f.avatar, theme: f.theme });
+      Object.assign(p, { name, avatar: f.avatar, theme: f.theme, input: f.input || 'voice' });
     } else {
-      const p = { id: U.store.uid(), name, avatar: f.avatar, theme: f.theme, xp: 0, stars: 0, quests: [], blitzDate: null, createdAt: Date.now() };
+      const p = { id: U.store.uid(), name, avatar: f.avatar, theme: f.theme, input: f.input || 'voice', xp: 0, stars: 0, quests: [], blitzDate: null, createdAt: Date.now() };
       d.players.push(p);
       d.current = p.id;
     }
@@ -113,7 +116,7 @@
       <div class="topbar">
         <button class="avatar" data-act="players" aria-label="Сменить игрока">${p.avatar}</button>
         <div class="who grow"><div class="name">${esc(p.name)}</div><div class="title">${T.titles[L.st - 1]}</div></div>
-        ${starsPill(p)}
+        <button class="pill" data-act="help" aria-label="Как устроены награды">${star()}${p.stars || 0}<span class="q">?</span></button>
         <button class="icon-btn" data-act="parent" aria-label="Для родителей">${ic('lock')}</button>
       </div>
       ${needBackup() ? `<button class="banner" data-act="backup">${ic('download')}<span>${n} ${pl(n, 'раунд', 'раунда', 'раундов')} без резервной копии. <b>Сохранить копию</b></span></button>` : ''}
@@ -137,10 +140,10 @@
 
   /* ---------- Выбор пакета ---------- */
   U.screens.packages = function () {
-    const p = U.player(), d = D();
+    const p = U.player(), d = D(), input = p.input === 'keys' ? 'keys' : 'voice';
     const card = (pk) => {
       const M = U.MODES[pk.mode];
-      const best = pk.mode === 'training' ? null : S.records(d, pk.id, p.id)[0];
+      const best = pk.mode === 'training' ? null : S.records(d, pk.id, p.id, { input, cfg: U.pkgSnapshot(pk) })[0];
       let desc = U.pkgDesc(pk);
       if (pk.mode === 'training') {
         const n = S.weakList(d, p.id, pk.max).length;
@@ -153,16 +156,25 @@
         <span class="pkg-go">${ic('play')}</span></button>`;
     };
     return `<div class="screen scroll">${topbar('Во что играем?', { right: starsPill(p) })}
+      ${inputToggle(input)}
       <div class="pkg-list">${U.STD_PACKAGES.map(card).join('')}</div>
       ${d.packages.length ? `<h2 class="sec">Свои пакеты</h2><div class="pkg-list">${d.packages.map(card).join('')}</div>` : ''}
       <button class="btn btn-light" data-act="newPkg">${ic('plus')}Свой раунд</button>
     </div>`;
   };
+  // Кто отвечает: вслух (отмечает взрослый) или сам (клавиатура). Запоминается у игрока.
+  function inputToggle(input, act) {
+    const a = act || 'setInput';
+    return `<div class="toggle input-toggle"><button class="${input === 'voice' ? 'on' : ''}" data-act="${a}" data-v="voice">Ответ вслух</button><button class="${input === 'keys' ? 'on' : ''}" data-act="${a}" data-v="keys">Ответ на клавиатуре</button></div>
+      <div class="input-note">${input === 'keys' ? 'Ребёнок набирает ответ, тренажёр проверяет сам.' : 'Ребёнок говорит ответ, взрослый отмечает, верно или нет.'}</div>`;
+  }
+  U.inputToggle = inputToggle;
+  U.actions.setInput = (ds) => { const p = U.player(); p.input = ds.v; U.store.save(); U.refresh(); };
   U.actions.packages = () => U.go('packages');
   U.actions.play = (ds) => { const pk = U.pkgById(ds.id); if (pk) U.play.start(pk, { saved: true }); };
 
   /* ---------- Свой раунд и свой пакет ---------- */
-  const FORM_DEFAULT = { name: '', mode: 'teacher', mul: 8, div: 8, interval: 5, from: 6, to: 3, duration: 60, tables: [2, 3, 4, 5, 6, 7, 8, 9], voice: false, hideTime: false };
+  const FORM_DEFAULT = { name: '', mode: 'teacher', mul: 8, div: 8, interval: 7, from: 8, to: 5, duration: 60, tables: [2, 3, 4, 5, 6, 7, 8, 9], voice: false, hideTime: false };
   const formFrom = (p) => Object.assign({}, FORM_DEFAULT, JSON.parse(JSON.stringify(p || {})), { tables: (p && p.tables ? p.tables.slice() : FORM_DEFAULT.tables.slice()) });
   U.actions.newPkg = () => U.go('pkgForm', {}, { form: formFrom() });
   U.actions.copyPkg = (ds) => { const pk = U.pkgById(ds.id); const f = formFrom(pk); f.name = pk.name + ' (копия)'; delete f.id; delete f.std; U.go('pkgForm', {}, { form: f }); };
@@ -278,7 +290,8 @@
     return `<div class="screen scroll">${topbar('Карта таблицы', { right: starsPill(p) })}
       <div class="toggle"><button class="${op === 'm' ? 'on' : ''}" data-act="mapOp" data-v="m">Умножение</button><button class="${op === 'd' ? 'on' : ''}" data-act="mapOp" data-v="d">Деление</button></div>
       <div class="panel"><div class="tmap">${g}</div>${op === 'd' ? '<div class="soft" style="margin-top:8px">Строка — на что делим, столбец — ответ, в клетке — делимое.</div>' : ''}</div>
-      <div class="panel"><div class="legend"><span><i></i>ещё нет</span><span><i class="c1"></i>бронза — верно</span><span><i class="c2"></i>серебро — 3 раза верно</span><span><i class="c3"></i>золото — 3 раза подряд быстро, до 3 с</span></div></div>
+      <div class="panel"><div class="legend"><span><i></i>ещё нет</span><span><i class="c1"></i>бронза — верно</span><span><i class="c2"></i>серебро — 3 раза верно</span><span><i class="c3"></i>золото — 3 раза подряд быстро, до ${S.FAST_MS / 1000} с</span></div>
+        <button class="link-btn" data-act="help" data-v="map">Как устроены награды</button></div>
       <div class="cups">${cups}</div>
     </div>`;
   };
@@ -296,15 +309,15 @@
     const toggle = `<div class="toggle"><button class="${tab === 'rec' ? 'on' : ''}" data-act="recTab" data-v="rec">Рекорды</button><button class="${tab === 'hist' ? 'on' : ''}" data-act="recTab" data-v="hist">История</button></div>`;
     let body = '';
     if (tab === 'rec') {
-      const who = familyOn() ? null : p.id;
+      const who = familyOn() ? null : p.id, input = recInput(pr);
       const rows = U.allPackages().filter((pk) => pk.mode !== 'training').map((pk) => {
-        const best = S.records(d, pk.id, who)[0];
+        const best = S.records(d, pk.id, who, { input, cfg: U.pkgSnapshot(pk) })[0];
         if (!best) return '';
         const owner = familyOn() ? (d.players.find((x) => x.id === best.player) || {}).name : '';
-        return `<button class="lrow" data-act="recDetail" data-id="${pk.id}"><span class="medal g1">${ic('trophy')}</span>
+        return `<button class="lrow" data-act="recDetail" data-id="${pk.id}" data-input="${input}"><span class="medal g1">${ic('trophy')}</span>
           <span class="grow"><b>${esc(pk.name)}</b><span>${S.resultText(best)} · ${F.date(best.startedAt)}${owner ? ' · ' + esc(owner) : ''}</span></span>${ic('play')}</button>`;
       }).join('');
-      body = rows ? `<div class="card rows">${rows}</div>` : '<div class="card empty">Рекордов пока нет — сыграйте первый раунд.</div>';
+      body = inputToggle(input, 'recInput') + (rows ? `<div class="card rows">${rows}</div>` : `<div class="card empty">${input === 'keys' ? 'Рекордов с клавиатуры пока нет' : 'Рекордов пока нет'} — сыграйте первый раунд.</div>`);
       if (familyOn()) body = '<div class="soft" style="color:var(--on-bg-soft)">Семейный рейтинг: лучшие результаты всех игроков</div>' + body;
     } else {
       const mine = d.rounds.filter((r) => r.player === p.id).sort((a, b) => b.startedAt - a.startedAt);
@@ -315,25 +328,27 @@
         .map((c) => `<button class="chip${filter === c[0] ? ' on' : ''}" data-act="histFilter" data-v="${c[0]}">${esc(c[1])}</button>`).join('');
       const list = mine.filter((r) => filter === 'all' || (r.pkg || 'once') === filter).slice(0, 200);
       const rows = list.map((r) => `<button class="lrow" data-act="roundDetail" data-id="${r.id}">
-          <span class="grow"><b>${esc(r.name)}${r.record ? '<span class="badge rec">рекорд</span>' : ''}${r.paused ? '<span class="badge">пауза</span>' : ''}</b>
+          <span class="grow"><b>${esc(r.name)}${r.record ? '<span class="badge rec">рекорд</span>' : ''}${r.input === 'keys' ? '<span class="badge">клавиатура</span>' : ''}${r.paused ? '<span class="badge">пауза</span>' : ''}</b>
           <span>${F.dt(r.startedAt)} · ${S.resultText(r)}</span></span><span class="gain-s">+${r.stars || 0}${starSm()}</span></button>`).join('');
       body = `<div class="chips">${chips}</div>` + (rows ? `<div class="card rows">${rows}</div>` : '<div class="card empty">Раундов ещё не было.</div>');
     }
     return `<div class="screen scroll">${topbar(tab === 'rec' ? 'Рекорды' : 'История', { right: starsPill(p) })}${toggle}${body}</div>`;
   };
+  function recInput(pr) { return pr.input || (U.player().input === 'keys' ? 'keys' : 'voice'); }
   U.actions.records = () => U.go('records', { tab: 'rec' });
   U.actions.recTab = (ds) => { ui.params.tab = ds.v; U.refresh(); };
+  U.actions.recInput = (ds) => { ui.params.input = ds.v; U.refresh(); };
   U.actions.histFilter = (ds) => { ui.params.filter = ds.v; U.refresh(); };
-  U.actions.recDetail = (ds) => U.go('recDetail', { id: ds.id });
+  U.actions.recDetail = (ds) => U.go('recDetail', { id: ds.id, input: ds.input });
   U.screens.recDetail = function (pr) {
     const p = U.player(), d = D(), pk = U.pkgById(pr.id) || { name: 'Пакет' };
-    const list = S.records(d, pr.id, familyOn() ? null : p.id).slice(0, 10);
+    const list = S.records(d, pr.id, familyOn() ? null : p.id, pk.mode ? { input: recInput(pr), cfg: U.pkgSnapshot(pk) } : null).slice(0, 10);
     const rows = list.map((r, i) => {
       const owner = familyOn() ? ' · ' + esc((d.players.find((x) => x.id === r.player) || {}).name || '') : '';
       return `<button class="lrow" data-act="roundDetail" data-id="${r.id}"><span class="medal${i < 3 ? ' g' + (i + 1) : ''}">${i + 1}</span>
         <span class="grow"><b>${S.resultText(r)}</b><span>${F.dt(r.startedAt)}${owner}</span></span></button>`;
     }).join('');
-    return `<div class="screen scroll">${topbar(esc(pk.name), { sub: pk.mode ? U.pkgDesc(pk) : '' })}
+    return `<div class="screen scroll">${topbar(esc(pk.name), { sub: (pk.mode ? U.pkgDesc(pk) : '') + (recInput(pr) === 'keys' ? ' · ответ на клавиатуре' : ' · ответ вслух') })}
       <div class="card rows">${rows || '<div class="empty">Результатов пока нет</div>'}</div></div>`;
   };
   U.actions.roundDetail = (ds) => U.go('roundDetail', { id: ds.id });
@@ -341,7 +356,7 @@
     const r = D().rounds.find((x) => x.id === pr.id);
     if (!r) return `<div class="screen">${topbar('Раунд')}<div class="card empty">Раунд удалён</div></div>`;
     const rows = r.items.map((it, i) => {
-      const e = U.gen.parse(it.k), t = it.late ? 'не успел' : it.m === null || it.m === undefined ? 'без отметки' : it.t !== null && it.t !== undefined ? F.sec(it.t) : '';
+      const e = U.gen.parse(it.k), t = it.a !== undefined && it.m !== 1 ? 'ответ: ' + it.a : it.late ? 'время вышло' : it.m === null || it.m === undefined ? 'без отметки' : it.t !== null && it.t !== undefined ? F.sec(it.t) : '';
       const mark = it.m === 1 ? `<span class="mk ok">${ic('check')}</span>` : it.m === 0 ? `<span class="mk bad">${ic('cross')}</span>` : '<span class="mk none">?</span>';
       return `<div class="rrow${it.m === 1 ? '' : ' miss'}"><span class="n">${i + 1}</span><span class="ex">${U.gen.text(it.k)} <span class="res">= ${e.ans}</span></span><span class="t">${t}</span>${mark}</div>`;
     }).join('');
@@ -367,8 +382,10 @@
   const LOWER_BETTER = { errors: 1, time: 1, avg: 1 };
   U.screens.charts = function (pr) {
     const p = U.player(), d = D();
-    const pkgSel = pr.pkg || 'all', metric = pr.metric || 'pct', byDay = !!pr.byDay;
-    const mine = d.rounds.filter((r) => r.player === p.id).sort((a, b) => a.startedAt - b.startedAt);
+    const pkgSel = pr.pkg || 'all', metric = pr.metric || 'pct', byDay = !!pr.byDay, inp = pr.inp || 'all';
+    const mine = d.rounds.filter((r) => r.player === p.id && (inp === 'all' || (r.input || 'voice') === inp)).sort((a, b) => a.startedAt - b.startedAt);
+    const inputs = [['all', 'Все ответы'], ['voice', 'Вслух'], ['keys', 'Клавиатура']]
+      .map((c) => `<button class="chip${inp === c[0] ? ' on' : ''}" data-act="chartInp" data-v="${c[0]}">${c[1]}</button>`).join('');
     const used = [];
     mine.forEach((r) => { if (r.pkg && used.indexOf(r.pkg) < 0) used.push(r.pkg); });
     const chips = [['all', 'Все пакеты']].concat(used.map((k) => [k, (U.pkgById(k) || {}).name || 'Пакет удалён']))
@@ -391,6 +408,7 @@
     return `<div class="screen scroll">${topbar('Графики', { right: starsPill(p) })}
       <div class="chips">${chips}</div>
       <div class="chips">${metrics}</div>
+      <div class="chips">${inputs}</div>
       <div class="card chart-card">${chart}<div class="legend chart-legend">${legend}</div></div>
       ${stats ? `<div class="card">${stats}</div>` : ''}
       <div class="toggle"><button class="${!byDay ? 'on' : ''}" data-act="chartDay" data-v="0">По раундам</button><button class="${byDay ? 'on' : ''}" data-act="chartDay" data-v="1">По дням</button></div>
@@ -400,6 +418,7 @@
   U.actions.chartPkg = (ds) => { ui.params.pkg = ds.v; U.refresh(); };
   U.actions.chartMetric = (ds) => { ui.params.metric = ds.v; U.refresh(); };
   U.actions.chartDay = (ds) => { ui.params.byDay = ds.v === '1'; U.refresh(); };
+  U.actions.chartInp = (ds) => { ui.params.inp = ds.v; U.refresh(); };
 
   /* ---------- Призы ---------- */
   U.screens.prizes = function () {
@@ -414,6 +433,7 @@
     return `<div class="screen scroll">${topbar('Призы', { right: starsPill(p) })}
       ${list || `<div class="card empty">Призов пока нет. Их задаёт родитель — в разделе для родителей.<br><button class="btn btn-light btn-sm" data-act="parent" style="margin:12px auto 0">${ic('lock')}Для родителей</button></div>`}
       ${bought ? `<h2 class="sec">Уже купили</h2><div class="card rows">${bought}</div>` : ''}
+      <button class="btn btn-light" data-act="help">${ic('question')}Как получить звёзды</button>
     </div>`;
   };
   U.actions.prizes = () => U.go('prizes');
@@ -453,6 +473,8 @@
     const players = d.players.map((x) => { const L = levelInfo(x.xp); return `<div class="lrow"><span class="avatar sm">${x.avatar}</span><span class="grow"><b>${esc(x.name)}</b><span>Уровень ${L.lv} · ${x.stars || 0} ${pl(x.stars || 0, 'звезда', 'звезды', 'звёзд')} · ${U.THEMES[x.theme].name}</span></span>
       <button class="mini-btn" data-act="editPlayer" data-id="${x.id}" aria-label="Изменить">${ic('edit')}</button><button class="mini-btn danger" data-act="delPlayer" data-id="${x.id}" aria-label="Удалить">${ic('trash')}</button></div>`; }).join('');
     html += sec('Игроки', 'users', `<div class="rows">${players}</div><button class="btn btn-light btn-sm" data-act="addPlayer">${ic('plus')}Добавить игрока</button>`);
+    html += sec('Как устроены награды', 'question', `<div class="muted">Звёзды, уровни, карта таблицы, кубки, задание недели, рекорды — что за что даётся и как переходит.</div>
+      <button class="btn btn-light btn-sm" data-act="help">${ic('question')}Открыть описание</button>`);
 
     const emo = PRIZE_EMOJI.map((e) => `<button class="av${f.prizeEmoji === e ? ' on' : ''}" data-act="fset" data-k="prizeEmoji" data-v="${e}">${e}</button>`).join('');
     const prizes = d.prizes.map((z) => `<div class="lrow"><span class="emo-s">${z.emoji}</span><span class="grow"><b>${esc(z.name)}</b><span>${z.price} ${pl(z.price, 'звезда', 'звезды', 'звёзд')}</span></span>

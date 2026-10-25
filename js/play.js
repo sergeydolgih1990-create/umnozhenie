@@ -1,10 +1,11 @@
-/* Раунд на экране: отсчёт 3-2-1, таймеры, отметки, пауза, свайпы, сверка и итог */
+/* Раунд на экране: отсчёт 3-2-1, таймеры, отметки родителя или клавиатура ребёнка, пауза, свайпы, сверка и итог */
 (function (U) {
   'use strict';
 
   const ui = U.ui, A = U.art, ic = A.icon, esc = U.esc, F = U.fmt, S = U.score;
   const starSm = () => A.star('ic sm');
-  const touch = () => window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  // Подсказки про клавиши ПК — только на широком экране с мышью; на телефоне и планшете — про пальцы
+const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || window.innerWidth < 700;
   let R = null, ctx = null, raf = 0, iv = 0, wake = null, sig = '';
 
   const P = U.play = {};
@@ -22,17 +23,18 @@
     } else if (U.STREAM_MODES[pkg.mode]) next = U.gen.stream(pkg, Math.random);
     else keys = U.gen.round(pkg, Math.random);
     stop();
-    R = new U.Round(pkg, { keys, next, onShow, onFinish });
-    ctx = { pkg, saved: !!(opts && opts.saved), startedAt: null, count: 3, cdPaused: false, swipeAt: 0, ghost: ghostFor(pkg, p) };
+    const self = p.input === 'keys';
+    R = new U.Round(pkg, { keys, next, onShow, onFinish, selfCheck: self });
+    ctx = { pkg, self, typed: '', flash: null, saved: !!(opts && opts.saved), startedAt: null, count: 3, cdPaused: false, swipeAt: 0, ghost: ghostFor(pkg, p, self) };
     U.go('round', {}, { replace: ui.screen === 'round' || ui.screen === 'result' });
     acquireWake();
     if (opts && opts.instant) { ctx.count = 0; ctx.startedAt = Date.now(); R.start(performance.now()); loop(); return; }
     countdown();
   };
 
-  function ghostFor(pkg, p) {
+  function ghostFor(pkg, p, self) {
     if (pkg.id === 'once' || pkg.mode === 'training') return null;
-    const best = S.records(U.store.data, pkg.id, p.id)[0];
+    const best = S.records(U.store.data, pkg.id, p.id, { input: self ? 'keys' : 'voice', cfg: U.pkgSnapshot(pkg) })[0];
     if (!best) return null;
     return { best, marks: best.items.filter((it) => it.at !== null && it.at !== undefined).map((it) => it.at) };
   }
@@ -55,6 +57,7 @@
   }
 
   function onShow(item) {
+    ctx.typed = '';
     if (ctx.pkg.voice) U.sound.speak(U.gen.speech(item.k)); else U.sound.next();
     if (ui.screen === 'round') U.render();
   }
@@ -65,17 +68,20 @@
     const items = R.items.map((it) => {
       const o = { k: it.k, m: it.m, t: it.t === null ? null : Math.round(it.t), at: it.at === null ? null : Math.round(it.at) };
       if (it.late) o.late = 1;
+      if (it.a !== undefined) o.a = it.a;
       return o;
     });
-    ui.review = { pkg: ctx.pkg, saved: ctx.saved, items, durationMs: Math.round(R.elapsed), paused: R.wasPaused, startedAt: ctx.startedAt };
+    ui.review = { pkg: ctx.pkg, saved: ctx.saved, self: ctx.self, items, durationMs: Math.round(R.elapsed), paused: R.wasPaused, startedAt: ctx.startedAt };
     if (ctx.pkg.mode === 'dictation') U.sound.go();
     R = null;
+    // ответы с клавиатуры уже проверены — сразу итог, без экрана проверки
+    if (ctx.self) { saveRound(); return; }
     U.go('review', {}, { replace: true });
   }
 
   function signature() {
     const c = R && R.cur();
-    return [R ? R.items.length : -1, c ? c.m : '', R && R.paused, R && R.pendingEnd, ctx.count, ctx.cdPaused].join('|');
+    return [R ? R.items.length : -1, c ? c.m : '', R && R.paused, R && R.pendingEnd, ctx.count, ctx.cdPaused, ctx.typed, !!ctx.flash].join('|');
   }
   // Один шаг часов. Ходят и по кадрам (плавная полоска), и по таймеру раз в 0,1 с —
   // на случай, если браузер придерживает кадры (экономия энергии, фоновые режимы).
@@ -97,7 +103,7 @@
   function stop() {
     cancelAnimationFrame(raf);
     clearInterval(iv);
-    if (ctx) clearTimeout(ctx.timer);
+    if (ctx) { clearTimeout(ctx.timer); clearTimeout(ctx.flashTimer); }
     releaseWake();
     U.sound.silence();
     R = null;
@@ -161,18 +167,25 @@
     } else if (counting) {
       card = `<div class="example-card"><div class="count-big">${ctx.count}</div><div class="eq">Приготовились!</div></div>`;
     } else if (mode === 'dictation') {
-      card = `<div class="example-card"><div class="card-num">${ic('sound')}</div><div class="example">№ ${n}</div><div class="listen">Слушай и пиши ответ</div></div>`;
+      const line = ctx.self ? `<div class="answers-line" aria-label="Ответы">${answersLine()}</div>` : '';
+      card = `<div class="example-card"><div class="card-num">${ic('sound')}</div><div class="example">№ ${n}</div><div class="listen">${ctx.self ? 'Слушай и набирай ответ' : 'Слушай и пиши ответ'}</div>${line}</div>`;
     } else if (R.pendingEnd !== null) {
       card = `<div class="example-card"><div class="card-badge bad">${ic('cross')}Ошибка — серия закончилась</div>
         <div class="example">${U.exHTML(cur.k)}</div>
         <button class="btn btn-light btn-sm undo-btn" data-act="undoStreak">Нажали по ошибке — ответ верный</button></div>`;
     } else {
-      const badge = U.FIXED_MODES[mode] && cur.m !== null ? `<div class="card-badge${cur.m ? '' : ' bad'}">${ic(cur.m ? 'check' : 'cross')}Отмечено «${cur.m ? 'верно' : 'неверно'}»</div>` : '';
-      card = `<div class="example-card">${badge}<div class="example">${U.exHTML(cur.k)}</div><div class="eq">= ?</div></div>`;
+      const badge = !ctx.self && U.FIXED_MODES[mode] && cur.m !== null ? `<div class="card-badge${cur.m ? '' : ' bad'}">${ic(cur.m ? 'check' : 'cross')}Отмечено «${cur.m ? 'верно' : 'неверно'}»</div>` : '';
+      // короткая вспышка после ответа с клавиатуры; правильный ответ не показываем
+      const flash = ctx.flash ? `<div class="card-badge${ctx.flash.ok ? '' : ' bad'}">${ic(ctx.flash.ok ? 'check' : 'cross')}${ctx.flash.ok ? 'Верно!' : 'Ошибка'}</div>` : '';
+      const eq = ctx.self ? `<div class="eq">= <span class="typed${ctx.typed ? '' : ' empty'}">${ctx.typed || '?'}</span></div>` : '<div class="eq">= ?</div>';
+      const fl = ctx.flash ? (ctx.flash.ok ? ' flash-ok' : ' flash-bad') : '';
+      card = `<div class="example-card${fl}">${badge}${flash}<div class="example">${U.exHTML(cur.k)}</div>${eq}</div>`;
     }
     html += card;
 
-    if (mode === 'dictation') {
+    if (ctx.self) {
+      html += keypadHTML(counting || paused) + `<div class="swipe-hint">${touch() ? 'Набери ответ и нажми ✓' : 'цифры · Enter — ответить · Backspace — стереть · пробел — пауза'}</div>`;
+    } else if (mode === 'dictation') {
       html += `<div class="swipe-hint">Ответы пишем на листке — проверим после диктанта</div>`;
     } else {
       const m = U.FIXED_MODES[mode] && cur && !counting ? cur.m : null, off = counting || paused || R.pendingEnd !== null;
@@ -182,8 +195,24 @@
         <div class="swipe-hint">${touch() ? 'или свайп влево / вправо' : '← неверно · → верно · пробел — пауза'}</div>`;
     }
     sig = signature();
-    return `<div class="screen">${html}</div>`;
+    return `<div class="screen${ctx.self ? ' selfmode' : ''}">${html}</div>`;
   };
+
+  // Строка ответов диктанта через запятую, как в тетради: последние 10 и то, что набирается сейчас
+  function answersLine() {
+    const done = R.items.slice(0, R.items.length - 1).map((it) => (it.a !== undefined ? it.a : '—'));
+    const lead = done.length > 10 ? '…, ' : '';
+    return lead + done.slice(-10).concat([`<b class="typed-in">${ctx.typed || '&nbsp;'}</b>`]).join(', ');
+  }
+  function keypadHTML(off) {
+    const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'del', '0', 'ok'];
+    return `<div class="keypad">${keys.map((k) => {
+      const cls = k === 'ok' ? ' key-ok' : k === 'del' ? ' key-del' : '';
+      const label = k === 'ok' ? 'Ответить' : k === 'del' ? 'Стереть' : k;
+      const face = k === 'ok' ? ic('check') : k === 'del' ? '⌫' : k;
+      return `<button class="key${cls}" data-act="key" data-v="${k}" aria-label="${label}"${off ? ' disabled' : ''}>${face}</button>`;
+    }).join('')}</div>`;
+  }
 
   function updateDynamic() {
     const cd = R.countdown(), bar = document.getElementById('cd-bar');
@@ -205,13 +234,40 @@
 
   /* ---------- Действия во время раунда ---------- */
   P.mark = function (v) {
-    if (!R || ctx.count > 0 || ctx.cdPaused) return;
+    if (!R || ctx.self || ctx.count > 0 || ctx.cdPaused) return;
     if (R.mark(v, performance.now())) {
       if (v) U.sound.ok(); else U.sound.bad();
       if (navigator.vibrate) navigator.vibrate(12);
       if (R && !R.finished && ui.screen === 'round') U.render();
     }
   };
+
+  // Набор ответа на экранной клавиатуре
+  P.type = function (v) {
+    if (!R || !ctx || !ctx.self || ctx.count > 0 || ctx.cdPaused || R.paused || R.finished) return;
+    if (v === 'ok') { submit(); return; }
+    if (v === 'del') ctx.typed = ctx.typed.slice(0, -1);
+    else if (ctx.typed.length < 3) ctx.typed = ctx.typed === '0' ? v : ctx.typed + v;
+    R.draft = ctx.typed ? Number(ctx.typed) : null;
+    U.render();
+  };
+  function submit() {
+    if (!ctx.typed) return;
+    const val = Number(ctx.typed), dict = ctx.pkg.mode === 'dictation', c = ctx;
+    ctx.typed = '';
+    const res = R.answer(val, performance.now());
+    if (res === null) return;
+    if (navigator.vibrate) navigator.vibrate(10);
+    if (!dict && R) {
+      if (res) U.sound.ok(); else U.sound.bad();
+      c.flash = { ok: res };
+      clearTimeout(c.flashTimer);
+      c.flashTimer = setTimeout(() => { c.flash = null; if (R && ctx === c && ui.screen === 'round') U.render(); }, 650);
+    }
+    if (R && !R.finished && ui.screen === 'round') U.render();
+  }
+  U.actions.key = (ds) => P.type(ds.v);
+
   const recentSwipe = () => ctx && Date.now() - ctx.swipeAt < 450;
   U.actions.markOk = () => { if (!recentSwipe()) P.mark(1); };
   U.actions.markBad = () => { if (!recentSwipe()) P.mark(0); };
@@ -236,6 +292,16 @@
   U.actions.abort = () => P.askAbort();
   P.key = function (e) {
     if (ui.modal) { if (e.key === 'Escape') U.closeModal(); return; }
+    if (ctx && ctx.self) {
+      if (/^\d$/.test(e.key)) P.type(e.key);
+      else if (e.key === 'Backspace') P.type('del');
+      else if (e.key === 'Enter') P.type('ok');
+      else if (e.key === ' ' || e.key === 'Spacebar') P.togglePause();
+      else if (e.key === 'Escape') P.askAbort();
+      else return;
+      e.preventDefault();
+      return;
+    }
     if (e.key === 'ArrowRight' || e.key === 'Enter') { P.mark(1); e.preventDefault(); }
     else if (e.key === 'ArrowLeft') { P.mark(0); e.preventDefault(); }
     else if (e.key === ' ' || e.key === 'Spacebar') { P.togglePause(); e.preventDefault(); }
@@ -245,7 +311,7 @@
     let x0 = null, y0 = 0;
     el.addEventListener('pointerdown', (e) => { if (ui.screen === 'round') { x0 = e.clientX; y0 = e.clientY; } });
     el.addEventListener('pointerup', (e) => {
-      if (x0 === null || ui.screen !== 'round') return;
+      if (x0 === null || ui.screen !== 'round' || (ctx && ctx.self)) { x0 = null; return; }
       const dx = e.clientX - x0, dy = e.clientY - y0;
       x0 = null;
       if (Math.abs(dx) > 70 && Math.abs(dy) < 90 && R && !R.paused) { ctx.swipeAt = Date.now(); P.mark(dx > 0 ? 1 : 0); }
@@ -267,13 +333,13 @@
     } else if (R && ui.screen === 'round') acquireWake();
   });
 
-  /* ---------- Сверка ---------- */
+  /* ---------- Сверка (когда отмечает родитель) ---------- */
   U.screens.review = function () {
     const rv = ui.review;
     if (!rv) return '';
     const it = rv.items, ok = it.filter((x) => x.m === 1).length, bad = it.filter((x) => x.m === 0).length, none = it.length - ok - bad;
     const rows = it.map((x, i) => {
-      const e = U.gen.parse(x.k), t = x.late ? 'не успел' : x.m === null ? (rv.pkg.mode === 'dictation' ? '' : 'без отметки') : x.t !== null ? F.sec(x.t) : '';
+      const e = U.gen.parse(x.k), t = x.late ? 'время вышло' : x.m === null ? (rv.pkg.mode === 'dictation' ? '' : 'без отметки') : x.t !== null ? F.sec(x.t) : '';
       return `<div class="rrow${x.m === null && rv.pkg.mode !== 'dictation' ? ' skip' : ''}"><span class="n">${i + 1}</span>
         <span class="ex">${U.gen.text(x.k)} <span class="res">= ${e.ans}</span></span><span class="t">${t}</span>
         <span class="mark"><button class="${x.m === 0 ? 'on bad' : ''}" data-act="rmark" data-i="${i}" data-v="0" aria-label="Неверно">${ic('cross')}</button><button class="${x.m === 1 ? 'on ok' : ''}" data-act="rmark" data-i="${i}" data-v="1" aria-label="Верно">${ic('check')}</button></span></div>`;
@@ -309,19 +375,28 @@
   U.actions.rAllOk = () => { ui.review.items.forEach((x) => { if (x.m === null) x.m = 1; }); U.render(); };
   P.askDiscard = () => U.confirm('Не сохранять раунд?', 'Он не попадёт в историю и рекорды.', 'Не сохранять', () => { ui.review = null; U.go('home', {}, { reset: true }); }, { danger: true, no: 'Вернуться' });
   U.actions.rDiscard = () => P.askDiscard();
-  U.actions.rSave = function () {
+
+  function saveRound() {
     const rv = ui.review, p = U.player(), d = U.store.data;
     const round = { id: U.store.uid(), player: p.id, pkg: rv.saved ? rv.pkg.id : null, name: rv.pkg.name, mode: rv.pkg.mode,
-      cfg: U.pkgSnapshot(rv.pkg), startedAt: rv.startedAt || Date.now(), durationMs: rv.durationMs, paused: !!rv.paused, items: rv.items };
+      input: rv.self ? 'keys' : 'voice', cfg: U.pkgSnapshot(rv.pkg), startedAt: rv.startedAt || Date.now(),
+      durationMs: rv.durationMs, paused: !!rv.paused, items: rv.items };
     const res = S.commit(d, p, round, Date.now());
     U.store.save();
     ui.result = res;
     ui.review = null;
     if ((res.record && res.prev) || res.levelAfter > res.levelBefore || res.cups.length) U.sound.fanfare(); else U.sound.ok();
     U.go('result', {}, { replace: true });
-  };
+  }
+  U.actions.rSave = saveRound;
 
   /* ---------- Итог ---------- */
+  function errorText(x) {
+    const p = U.gen.parts(x.k), head = p[0] + ' ' + p[1] + ' ' + p[2] + ' = <b class="ok">' + U.gen.parse(x.k).ans + '</b>';
+    if (x.a !== undefined) return head + ' <span class="no">не ' + x.a + '</span>';
+    if (x.late) return head + ' <span class="no">время вышло</span>';
+    return head;
+  }
   U.screens.result = function () {
     const res = ui.result, p = U.player();
     if (!res || !p) return U.screens.home();
@@ -338,28 +413,28 @@
     else if (r.mode === 'minute') score = `${s.correct}<small> ${U.plural(s.correct, 'верный', 'верных', 'верных')}</small>`;
     else score = `${s.correct}<small> из ${s.total}</small>`;
     const subs = [];
-    if (r.mode === 'fast' || r.mode === 'limit' || r.mode === 'training') subs.push('Время: ' + F.time(s.timeMs));
+    if (r.mode === 'fast' || r.mode === 'limit' || r.mode === 'training' || r.input === 'keys') subs.push('Время: ' + F.time(s.timeMs));
     if (res.prev) subs.push((res.record ? 'Прошлый рекорд — ' : 'Рекорд — ') + S.resultText(res.prev));
     if (r.paused) subs.push('Была пауза — в рекорды не идёт');
     if (!r.pkg) subs.push('Разовый раунд — в рекорды не идёт');
     const lines = res.lines.map((l) => `<li><span>${esc(l[0])}</span><b>+${l[1]}</b></li>`).join('');
     const basePct = levelUp ? 0 : before.pct;
-    const errs = r.items.filter((x) => x.m !== 1).map((x) => U.gen.text(x.k) + ' = ' + U.gen.parse(x.k).ans);
+    const errs = r.items.filter((x) => x.m !== 1).map(errorText);
     const uniq = errs.filter((x, i) => errs.indexOf(x) === i).slice(0, 4);
     return `<div class="screen">
       ${celebrate ? A.confetti() : ''}
       <div class="result">
         ${ribbon ? `<div class="ribbon">${ribbon}</div>` : ''}
-        <div class="pkg-name">${esc(r.name)}</div>
+        <div class="pkg-name">${esc(r.name)}${r.input === 'keys' ? ' · ответы с клавиатуры' : ''}</div>
         <div class="score">${score}</div>
         ${subs.length ? `<div class="sub">${subs.join(' · ')}</div>` : ''}
-        <div class="panel earn"><div class="total">+${res.total} ${A.star()}</div>${lines ? `<ul>${lines}</ul>` : ''}</div>
+        <div class="panel earn"><div class="total">+${res.total} ${A.star()}<button class="link-btn help-link" data-act="help">за что звёзды?</button></div>${lines ? `<ul>${lines}</ul>` : ''}</div>
         <div class="panel hero-mini">${A.hero(p.theme, L.st)}
           <div class="grow"><b style="font-size:17px">Уровень ${L.lv} · ${T.titles[L.st - 1]}</b>
             <div class="soft">${stageUp ? 'Герой вырос: ' + T.hero[L.st - 1] + '!' : levelUp ? 'Новый уровень!' : `<span class="gain">+${res.total}</span>` + (L.next ? ' · до ' + (L.lv + 1) + '-го: ' + L.left + ' ' + starSm() : '')}</div>
             <div class="xp"><i style="width:${Math.max(0, basePct)}%"></i><b style="width:${Math.max(0, L.pct - basePct)}%"></b></div></div>
         </div>
-        ${uniq.length ? `<div class="again">Повторить${uniq.map((x) => `<span class="chip-ex">${x}</span>`).join('')}</div>` : ''}
+        ${uniq.length ? `<div class="again">Ошибки${uniq.map((x) => `<span class="chip-ex">${x}</span>`).join('')}</div>` : ''}
       </div>
       <div class="btn-row"><button class="btn btn-light" data-act="home">${ic('home')}Домой</button><button class="btn btn-primary" data-act="again">${ic('replay')}Ещё раз</button></div>
     </div>`;
@@ -371,27 +446,32 @@
     if (pk) U.play.start(pk, { saved: !!r.pkg });
   };
 
-  /* ---------- Для проверки: раунд с готовыми отметками без ожидания ---------- */
+  /* ---------- Для проверки: раунд с готовыми ответами без ожидания ---------- */
   P.simulate = function (pkgId, upto, stage) {
     const pkg = U.pkgById(pkgId);
     P.start(pkg, { saved: true, instant: true });
     if (!R) return;
     let t = performance.now();
+    const say = (v) => {
+      if (!ctx.self) { if (R.mode !== 'dictation') R.mark(v, t); return; }
+      const ans = U.gen.parse(R.cur().k).ans;
+      R.answer(v ? ans : ans + 1, t);
+    };
     for (let i = 0; i < upto && R && !R.finished; i++) {
-      const v = i % 6 === 3 ? 0 : 1;
       t += 1700 + (i % 3) * 400;
-      if (R.mode !== 'dictation') R.mark(v, t);
-      if (R && U.FIXED_MODES[R.mode]) { t = R.cur().shown + R.interval(R.items.length - 1) + 1; R.tick(t); }
+      say(i % 6 === 3 ? 0 : 1);
+      if (R && !ctx.self && U.FIXED_MODES[R.mode]) { t = R.cur().shown + R.interval(R.items.length - 1) + 1; R.tick(t); }
       if (R && R.mode === 'streak' && R.pendingEnd !== null) { t += 3100; R.tick(t); }
     }
     let guard = 0;
     while (stage && R && !R.finished && guard++ < 400) {
       t += 6000;
-      if (R.mode === 'streak') { R.mark(0, t); if (R) R.tick(t + 3100); }
+      if (R.mode === 'streak') { if (ctx.self) R.answer(-1, t); else { R.mark(0, t); if (R) R.tick(t + 3100); } }
+      else if (ctx.self) say(1);
       else if (R.mode !== 'dictation' && !U.FIXED_MODES[R.mode]) R.mark(1, t);
       else R.tick(t);
     }
     if (R) { R.lastT = performance.now(); U.render(); }
-    if (stage === 'result') U.actions.rSave();
+    if (stage === 'result' && ui.review) saveRound();
   };
 })(window.U = window.U || {});

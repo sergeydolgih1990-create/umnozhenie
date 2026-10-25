@@ -458,3 +458,63 @@ svg.chart { width: 100%; height: auto; display: block; }
 @media (hover: hover) {
   .btn:hover:not(:disabled), .tile:hover, .pkg-card:hover, .chip:hover { filter: brightness(1.04); }
 }
+
+/* ---------- Ребёнок отвечает сам: клавиатура ---------- */
+.input-toggle > button { font-size: 14px; padding: 9px 6px; line-height: 1.2; }
+.keypad { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; flex: none; }
+.key {
+  height: clamp(50px, 7.4cqh, 76px); border: 0; border-radius: 18px; background: var(--card); color: var(--ink);
+  font-size: clamp(26px, 4cqh, 34px); font-weight: 900; box-shadow: 0 5px 0 rgba(0, 0, 0, .16);
+  display: grid; place-items: center; padding: 0; transition: transform .06s, box-shadow .06s;
+}
+.key:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0, 0, 0, .16); }
+.key:disabled { opacity: .5; }
+.key-ok { background: var(--ok); color: #fff; box-shadow: 0 5px 0 var(--ok-dark); }
+.key-ok .ic { width: 34px; height: 34px; }
+.key-del { background: #eef0f7; color: var(--ink-soft); }
+.selfmode .example { font-size: max(48px, min(30cqw, 12cqh, 200px)); }
+.selfmode .eq { font-size: max(28px, min(13cqw, 7.5cqh, 90px)); margin-top: 6px; color: var(--ink); }
+.typed { display: inline-block; min-width: 1.4em; padding: 0 .15em; border-bottom: 5px solid var(--op); text-align: center; }
+.typed.empty { color: #c3c7da; }
+.example-card.flash-ok { box-shadow: 0 0 0 5px var(--ok), 0 10px 0 rgba(0, 0, 0, .14); }
+.example-card.flash-bad { box-shadow: 0 0 0 5px var(--bad), 0 10px 0 rgba(0, 0, 0, .14); }
+.answers-line {
+  margin: 14px 12px 0; padding: 8px 12px; max-width: calc(100% - 24px); border-radius: 12px; background: #f3f4fa;
+  font-size: 20px; font-weight: 900; color: var(--ink); text-align: center; line-height: 1.4; word-break: break-word;
+}
+.answers-line .typed-in { display: inline-block; min-width: 1.6em; border-bottom: 3px solid var(--op); }
+.pill .q { margin-left: 2px; width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 12px; background: var(--chip); border: 1.5px solid var(--panel-line); }
+button.pill { cursor: pointer; }
+.help-link { margin-left: auto; font-size: 13px; padding: 4px; color: var(--on-panel-soft); }
+
+/* ---------- Как устроены награды ---------- */
+.help-sec { display: grid; gap: 10px; }
+.help-sec p { margin: 0; font-weight: 700; line-height: 1.45; font-size: 15px; }
+.help-sec h3 .ic { color: #e0a100; }
+.help-table { width: 100%; border-collapse: collapse; font-size: 15px; font-weight: 700; }
+.help-table td, .help-table th { padding: 7px 4px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.help-table th { font-size: 13px; color: var(--ink-soft); font-weight: 900; }
+.help-table .num { text-align: right; font-weight: 900; white-space: nowrap; color: var(--ok-dark); }
+.help-table.levels .num { text-align: left; color: var(--ink); width: 70px; }
+.help-table tr.stage-start td { border-top: 2px solid #d9dcea; }
+.help-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-weight: 700; }
+.help-list .sw { display: inline-block; width: 16px; height: 16px; border-radius: 4px; vertical-align: -3px; margin-right: 8px; }
+.help-list .sw.c1 { background: var(--bronze); } .help-list .sw.c2 { background: var(--silver); box-shadow: inset 0 0 0 2px #8c9ab0; } .help-list .sw.c3 { background: var(--gold); }
+.help-heroes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.help-hero { border-radius: 14px; padding: 6px 2px 8px; text-align: center; background: linear-gradient(180deg, var(--bg1), var(--bg2)); color: var(--on-bg); display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.help-hero svg.hero { width: 100%; height: 56px; }
+.help-hero b { font-size: 11px; line-height: 1.15; }
+.help-hero span { font-size: 10px; color: var(--on-bg-soft); font-weight: 800; }
+.input-note { margin-top: -6px; text-align: center; font-size: 13px; font-weight: 800; color: var(--on-bg-soft); }
+.card .input-note { color: var(--ink-soft); margin-top: 0; }
+.card .input-toggle { background: #f0f2f8; border-color: var(--line); }
+.card .input-toggle > button { color: var(--ink-soft); }
+
+/* Правки после проверки 25.10.2026 */
+.again .chip-ex { background: #fff; color: var(--ink); border: 1.5px solid var(--line); }
+.chip-ex .ok { color: var(--ok-dark); }
+.chip-ex .no { color: var(--bad-dark); font-size: .85em; margin-left: 4px; }
+.card .input-toggle > .on { background: var(--ink); color: #fff; box-shadow: none; }
+.segs i.done { background: var(--on-bg-soft); opacity: .5; }
+.answers-line { font-size: 24px; }
+.help-list.terms { gap: 8px; line-height: 1.4; }

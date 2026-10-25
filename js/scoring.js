@@ -2,9 +2,11 @@
 (function (U) {
   'use strict';
 
-  const FAST_MS = 3000;   // быстрый ответ для золотой клетки
-  const SLOW_MS = 4000;   // медленный ответ попадает в «Работу над ошибками»
+  const FAST_MS = 5000;   // быстрый ответ для золотой клетки (Сергей 25.10.2026: темп мягче на 2 с)
+  const SLOW_MS = 6000;   // медленный ответ попадает в «Работу над ошибками»
   const DAY = 86400000;
+  // Звёзды: за что и сколько. Отсюда же берёт числа экран «Как устроены награды».
+  const BONUS = { correct: 1, trainingMult: 2, clean: 5, cleanMin: 5, record: 10, gold: 3, cup: 15, all: 50, quest: 20 };
 
   const hasT = (it) => it.t !== null && it.t !== undefined && !it.late;
 
@@ -34,14 +36,23 @@
     const A = a.s, B = b.s, early = a.startedAt - b.startedAt;
     if (mode === 'streak') return (B.streak - A.streak) || early;
     if (mode === 'minute') return (B.correct - A.correct) || (A.wrong - B.wrong) || early;
-    if (mode === 'fast' || mode === 'limit') return (B.correct - A.correct) || (A.timeMs - B.timeMs) || early;
+    // с клавиатуры следующий пример идёт сразу после ответа, поэтому и в ритме учителя время значимо
+    if (mode === 'fast' || mode === 'limit' || a.input === 'keys') return (B.correct - A.correct) || (A.timeMs - B.timeMs) || early;
     return (B.correct - A.correct) || early;
   }
 
   const eligible = (r) => !!r.pkg && !r.paused && r.mode !== 'training';
 
-  function records(data, pkgId, playerId) {
-    const list = data.rounds.filter((r) => r.pkg === pkgId && eligible(r) && (!playerId || r.player === playerId));
+  // Рекорды сравнивают только раунды в одинаковых условиях: способ ответа (вслух / сам) и темп пакета
+  function recordSig(input, cfg) {
+    const c = cfg || {};
+    return [input || 'voice', c.mul, c.div, c.interval, c.from, c.to, c.duration, (c.tables || []).join('.')].join('|');
+  }
+  // like — {input, cfg}: с какими условиями сравнивать; без него — все раунды пакета
+  function records(data, pkgId, playerId, like) {
+    const want = like ? recordSig(like.input, like.cfg) : null;
+    const list = data.rounds.filter((r) => r.pkg === pkgId && eligible(r) && (!playerId || r.player === playerId) &&
+      (!want || recordSig(r.input, r.cfg) === want));
     if (!list.length) return [];
     const mode = list[list.length - 1].mode;
     return list.sort((a, b) => better(mode, a, b));
@@ -89,9 +100,9 @@
   function rowKeys(op, r) { return RANGE.map((x) => (op === 'm' ? U.gen.keyM(r, x) : U.gen.keyD(r * x, r))); }
   function cupDefs() {
     const list = [];
-    RANGE.forEach((r) => list.push({ id: 'm' + r, op: 'm', row: r, name: 'Повелитель ' + ROW[r], short: '×' + r, bonus: 15 }));
-    RANGE.forEach((r) => list.push({ id: 'd' + r, op: 'd', row: r, name: 'Деление на ' + r, short: 'на ' + r, bonus: 15 }));
-    list.push({ id: 'all', name: 'Вся таблица', short: 'всё', bonus: 50 });
+    RANGE.forEach((r) => list.push({ id: 'm' + r, op: 'm', row: r, name: 'Повелитель ' + ROW[r], short: '×' + r, bonus: BONUS.cup }));
+    RANGE.forEach((r) => list.push({ id: 'd' + r, op: 'd', row: r, name: 'Деление на ' + r, short: 'на ' + r, bonus: BONUS.cup }));
+    list.push({ id: 'all', name: 'Вся таблица', short: 'всё', bonus: BONUS.all });
     return list;
   }
   function cupProgress(data, playerId, cup) {
@@ -153,7 +164,7 @@
   /* ---------- Сохранение раунда со всеми наградами ---------- */
   function commit(data, player, round, now) {
     round.s = summarize(round);
-    const prev = eligible(round) ? records(data, round.pkg, player.id)[0] || null : null;
+    const prev = eligible(round) ? records(data, round.pkg, player.id, round)[0] || null : null;
     data.rounds.push(round);
     const record = eligible(round) && (!prev || better(round.mode, round, prev) < 0);
     const newGold = applyMastery(data, player.id, round.items);
@@ -162,14 +173,14 @@
     let questWon = false;
     if (q.done && !q.awarded) { (player.quests = player.quests || []).push(q.key); questWon = true; }
 
-    const mult = round.mode === 'training' ? 2 : 1, lines = [];
+    const mult = round.mode === 'training' ? BONUS.trainingMult : 1, lines = [];
     const s = round.s;
-    if (s.correct) lines.push([s.correct + ' ' + U.plural(s.correct, 'верный ответ', 'верных ответа', 'верных ответов') + (mult > 1 ? ' ×2' : ''), s.correct * mult]);
-    if (round.mode !== 'streak' && s.total >= 5 && s.correct === s.total) lines.push(['Без ошибок', 5]);
-    if (record && prev) lines.push(['Новый рекорд', 10]);
-    if (newGold.length) lines.push([(newGold.length === 1 ? 'Золотая клетка ' : 'Золотые клетки ') + newGold.map((k) => U.gen.text(k).replace(/ /g, ' ')).join(', '), 3 * newGold.length]);
+    if (s.correct) lines.push([s.correct + ' ' + U.plural(s.correct, 'верный ответ', 'верных ответа', 'верных ответов') + (mult > 1 ? ' ×' + mult : ''), s.correct * BONUS.correct * mult]);
+    if (round.mode !== 'streak' && s.total >= BONUS.cleanMin && s.correct === s.total) lines.push(['Без ошибок', BONUS.clean]);
+    if (record && prev) lines.push(['Новый рекорд', BONUS.record]);
+    if (newGold.length) lines.push([(newGold.length === 1 ? 'Золотая клетка ' : 'Золотые клетки ') + newGold.map((k) => U.gen.text(k).replace(/ /g, ' ')).join(', '), BONUS.gold * newGold.length]);
     cups.forEach((c) => lines.push(['Кубок «' + c.name + '»', c.bonus]));
-    if (questWon) lines.push(['Задание недели', 20]);
+    if (questWon) lines.push(['Задание недели', BONUS.quest]);
     const total = lines.reduce((a, l) => a + l[1], 0);
 
     const levelBefore = U.levelOf(player.xp || 0);
@@ -181,6 +192,6 @@
       levelBefore, levelAfter: U.levelOf(player.xp) };
   }
 
-  U.score = { FAST_MS, SLOW_MS, DAY, summarize, better, eligible, records, resultText, fmtTime, applyMastery,
+  U.score = { FAST_MS, SLOW_MS, DAY, BONUS, summarize, better, eligible, recordSig, records, resultText, fmtTime, applyMastery,
     cupDefs, cupProgress, checkCups, rowKeys, weakList, weekStart, shiftWeek, quest, commit };
 })(window.U = window.U || {});

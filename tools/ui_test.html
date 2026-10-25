@@ -15,6 +15,7 @@
 <script src="../js/ui.js"></script>
 <script src="../js/screens.js"></script>
 <script src="../js/play.js"></script>
+<script src="../js/help.js"></script>
 <script>
 /* Сценарий пользователя с настоящими таймерами раунда. Запуск: tools/run_ui_test.py (Edge без окна, виртуальное время). */
 (async function () {
@@ -50,16 +51,16 @@
     click('[data-act="markOk"]');
     await wait(100);
     check('учитель: отметка не листает', R().items.length === 1 && R().items[0].m === 1 && /Отмечено/.test($('.card-badge').textContent));
-    await wait(5000);
-    check('учитель: через 5 с следующий', R().items.length === 2, R().items.length);
-    await wait(5000);
+    await wait(7000);
+    check('учитель: через 7 с следующий', R().items.length === 2, R().items.length);
+    await wait(7000);
     check('учитель: третий, второй без отметки', R().items.length === 3 && R().items[1].m === null);
     click('[data-act="pause"]');
     const el = R().elapsed;
     await wait(8000);
     check('пауза держит время', R().items.length === 3 && Math.abs(R().elapsed - el) < 50, [R().elapsed, el]);
     click('[data-act="resume"]');
-    await wait(5100);
+    await wait(7100);
     check('после паузы ритм продолжается', R().items.length === 4, R().items.length);
     U.play.askAbort();
     click('[data-act="modalYes"]');
@@ -116,8 +117,8 @@
     U.go('home', {}, { reset: true }); click('[data-act="packages"]');
     await startRound('dictation');
     check('диктант: пример скрыт, кнопок нет', /№ 1/.test($('.example').textContent) && !$('[data-act="markOk"]'));
-    await wait(16 * 5000 + 300);
-    check('диктант: через 80 с — проверка листка', U.ui.screen === 'review' && U.ui.review.items.every((x) => x.m === null));
+    await wait(16 * 7000 + 300);
+    check('диктант: через 112 с — проверка листка', U.ui.screen === 'review' && U.ui.review.items.every((x) => x.m === null));
     click('[data-act="rmark"][data-i="0"][data-v="0"]');
     click('[data-act="rAllOk"]');
     check('диктант: «Остальные — верно»', U.ui.review.items.filter((x) => x.m === 1).length === 15);
@@ -206,6 +207,52 @@
     await startRound(cp.id);
     check('свой пакет: примеры только с 7', U.gen.parse(R().items[0].k).f.indexOf(7) >= 0);
     U.play.askAbort(); click('[data-act="modalYes"]'); await wait(300);
+
+    /* Ребёнок отвечает сам: клавиатура */
+    U.go('home', {}, { reset: true });
+    click('[data-act="packages"]');
+    click('[data-act="setInput"][data-v="keys"]');
+    check('переключатель «Сам» запоминается у игрока', U.player().input === 'keys' && $('.input-toggle .on').dataset.v === 'keys');
+    const typeAns = async (n) => { String(n).split('').forEach((dg) => click(`[data-act="key"][data-v="${dg}"]`)); click('[data-act="key"][data-v="ok"]'); await wait(200); };
+    await startRound('school');
+    check('сам: вместо кнопок — клавиатура', !!$('.keypad') && !$('[data-act="markOk"]') && document.querySelectorAll('.keypad .key').length === 12);
+    const a0 = U.gen.parse(R().cur().k).ans;
+    String(a0).split('').forEach((dg) => click(`[data-act="key"][data-v="${dg}"]`));
+    check('сам: набранное видно в примере', $('.typed').textContent === String(a0));
+    click('[data-act="key"][data-v="ok"]'); await wait(150);
+    check('сам: верный ответ — сразу следующий и вспышка «Верно»', R().items.length === 2 && R().items[0].m === 1 && /Верно/.test($('.example-card').textContent));
+    await typeAns(U.gen.parse(R().cur().k).ans + 1);
+    check('сам: неверный ответ — ошибка, дальше', R().items[1].m === 0 && R().items[1].a !== undefined && R().items.length === 3);
+    await wait(7300);
+    check('сам: не набрал за 7 с — «не успел», дальше', R().items[2].m === 0 && R().items[2].late === 1 && R().items.length === 4);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: String(U.gen.parse(R().cur().k).ans).slice(0, 1), bubbles: true }));
+    check('сам: цифры с клавиатуры ПК', $('.typed').textContent.length === 1);
+    for (let i = 0; i < 20 && U.ui.screen === 'round'; i++) await typeAns(U.gen.parse(R().cur().k).ans);
+    check('сам: после раунда сразу итог, без проверки', U.ui.screen === 'result');
+    const kr = D().rounds[D().rounds.length - 1];
+    check('сам: раунд сохранён как «сам»', kr.input === 'keys' && kr.pkg === 'school');
+    check('сам: в итоге ошибка с написанным ответом', /не \d+/.test($('.again').textContent) && /время вышло/.test($('.again').textContent), $('.again') && $('.again').textContent);
+    check('сам: правильный ответ в итоге не красный', !!$('.again .chip-ex b.ok'));
+    check('сам: свой первый рекорд', /Первый результат/.test(document.body.textContent));
+
+    /* Диктант с клавиатурой: строка ответов через запятую */
+    U.go('home', {}, { reset: true });
+    click('[data-act="packages"]');
+    await startRound('dictation');
+    check('диктант сам: пример не виден, клавиатура есть', /№ 1/.test($('.example').textContent) && !!$('.keypad'));
+    await typeAns(U.gen.parse(R().cur().k).ans);
+    await typeAns(U.gen.parse(R().cur().k).ans + 1);
+    check('диктант сам: ответы через запятую', /\d+,\s*\d+/.test($('.answers-line').textContent));
+    check('диктант сам: без вспышки верно/ошибка', !$('.card-badge'));
+    U.play.askAbort(); click('[data-act="modalYes"]'); await wait(300);
+
+    /* Экран «Как устроены награды» */
+    U.go('home', {}, { reset: true });
+    click('.topbar [data-act="help"]');
+    check('описание наград открывается со звёзд', U.ui.screen === 'help');
+    check('описание: 15 уровней', document.querySelectorAll('.help-table.levels tbody tr').length === 15);
+    check('описание: 5 ступеней героя', document.querySelectorAll('.help-hero').length === 5);
+    check('описание: числа из настроек', new RegExp('быстрее ' + U.score.FAST_MS / 1000 + ' секунд').test(document.body.textContent));
   } catch (e) {
     fail++;
     log.push('ОШИБКА СЦЕНАРИЯ: ' + e.message + ' @ ' + (e.stack || '').split('\n')[1]);

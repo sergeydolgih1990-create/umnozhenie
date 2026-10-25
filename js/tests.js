@@ -65,8 +65,10 @@
   check('поток «только деление»', [0, 1, 2, 3, 4, 5].every(() => onlyDiv()[0] === 'd'));
 
   /* --- движок --- */
-  const keys16 = G.round(pkg('school'), seeded(11));
-  let R = new U.Round(pkg('school'), { keys: keys16 });
+  check('темп мягче на 2 с: школьный блиц 7 с, мастер 5 с', pkg('school').interval === 7 && pkg('master').interval === 5 && pkg('limit').interval === 6);
+  const school5 = Object.assign({}, pkg('school'), { interval: 5 });
+  const keys16 = G.round(school5, seeded(11));
+  let R = new U.Round(school5, { keys: keys16 });
   R.start(1000);
   R.mark(1, 2200);
   check('учитель: отметка не листает', R.items.length === 1 && R.items[0].m === 1 && R.items[0].t === 1200, R.items[0]);
@@ -83,8 +85,8 @@
   check('учитель: раунд заканчивается после 16 × 5 с', R.finished && R.items.length === 16 && R.elapsed === 80000, { n: R.items.length, e: R.elapsed });
 
   R = new U.Round(pkg('accel'), { keys: G.round(pkg('accel'), seeded(2)) });
-  check('ускорение: первый пример 6 с', R.interval(0) === 6000);
-  check('ускорение: последний 3 с', R.interval(19) === 3000);
+  check('ускорение: первый пример 8 с', R.interval(0) === 8000);
+  check('ускорение: последний 5 с', R.interval(19) === 5000);
 
   R = new U.Round(pkg('fast'), { keys: G.round(pkg('fast'), seeded(4)) });
   R.start(0);
@@ -92,7 +94,8 @@
   check('быстрый: 20 отметок — конец', R.finished && R.items.length === 20);
   check('быстрый: время — по последней отметке', R.elapsed === 30000, R.elapsed);
 
-  R = new U.Round(pkg('limit'), { keys: G.round(pkg('limit'), seeded(6)) });
+  const limit4 = Object.assign({}, pkg('limit'), { interval: 4 });
+  R = new U.Round(limit4, { keys: G.round(limit4, seeded(6)) });
   R.start(0); R.tick(4100);
   check('лимит: просрочка = неверно', R.items[0].m === 0 && R.items[0].late === 1 && R.items.length === 2);
   check('лимит: следующий с момента лимита', R.items[1].shown === 4000);
@@ -113,6 +116,34 @@
   R.tick(61000);
   check('минута: конец через 60 с', R.finished && R.elapsed === 60000);
   check('минута: неотмеченный последний не считается', R.items.every((it) => it.m === 1), R.items.length);
+
+  /* --- ответ ребёнка с клавиатуры --- */
+  R = new U.Round(school5, { keys: keys16, selfCheck: true });
+  R.start(0);
+  const ans0 = G.parse(keys16[0]).ans;
+  check('сам: верный ответ засчитан', R.answer(ans0, 1800) === 1 && R.items[0].a === ans0 && R.items[0].t === 1800);
+  check('сам: после ответа сразу следующий', R.items.length === 2 && R.items[1].shown === 1800);
+  check('сам: неверный ответ — ошибка', R.answer(G.parse(keys16[1]).ans + 1, 2500) === 0 && R.items[1].m === 0);
+  R.tick(2500 + 5100);
+  check('сам: не успел за 5 с — ошибка «не успел», дальше', R.items[2].m === 0 && R.items[2].late === 1 && R.items.length === 4);
+  check('сам: в паузе ответы не принимаются', (R.pause(8000), R.answer(1, 8100) === null));
+  R.resume(9000);
+  R.draft = G.parse(R.cur().k).ans;
+  R.tick(9000 + 5100);
+  check('сам: набранный, но не подтверждённый ответ засчитан по времени', R.items[3].m === 1 && !R.items[3].late && R.items.length === 5, R.items[3]);
+  const dict = Object.assign({}, pkg('dictation'), { interval: 5 });
+  R = new U.Round(dict, { keys: G.round(dict, seeded(14)), selfCheck: true });
+  R.start(0);
+  check('сам: в диктанте ответы принимаются', R.answer(G.parse(R.items[0].k).ans, 2000) === 1 && R.items.length === 2);
+  R = new U.Round(pkg('streak'), { next: G.stream(pkg('streak'), seeded(15)), selfCheck: true });
+  R.start(0); R.answer(G.parse(R.items[0].k).ans, 900); R.answer(-1, 1700);
+  check('сам: в серии ошибка сразу заканчивает раунд', R.finished && R.items.length === 2);
+
+  /* --- рекорды раздельно: вслух / сам и темп пакета --- */
+  const sig = S.recordSig;
+  check('рекорды: вслух и сам — разные списки', sig('voice', pkg('school')) !== sig('keys', pkg('school')));
+  check('рекорды: старый темп 5 с отдельно от 7 с', sig('voice', school5) !== sig('voice', pkg('school')));
+  check('рекорды: без отметки способа — «вслух»', sig(undefined, pkg('school')) === sig('voice', pkg('school')));
 
   R = new U.Round(pkg('dictation'), { keys: G.round(pkg('dictation'), seeded(13)) });
   R.start(0);
@@ -137,7 +168,8 @@
 
   /* --- карта таблицы --- */
   const dm = { mastery: {}, cups: {}, rounds: [] };
-  const fast = (k) => ({ k, m: 1, t: 1500 }), slow = (k) => ({ k, m: 1, t: 3500 }), bad = (k) => ({ k, m: 0, t: 2000 });
+  const fast = (k) => ({ k, m: 1, t: 1500 }), slow = (k) => ({ k, m: 1, t: 5500 }), bad = (k) => ({ k, m: 0, t: 2000 });
+  check('золото — до 5 с, медленно — дольше 6 с', S.FAST_MS === 5000 && S.SLOW_MS === 6000);
   S.applyMastery(dm, 'p', [slow('m7x8')]);
   check('карта: первый верный — бронза', dm.mastery.p.m7x8.l === 1);
   S.applyMastery(dm, 'p', [slow('m7x8'), slow('m7x8')]);
@@ -158,7 +190,7 @@
 
   /* --- трудные примеры --- */
   const wr = (t, items) => ({ player: 'p', startedAt: t, items });
-  const wd = { rounds: [wr(1, [bad('m6x7'), slow('m8x9')]), wr(2, [{ k: 'm8x9', m: 1, t: 4500 }])] };
+  const wd = { rounds: [wr(1, [bad('m6x7'), slow('m8x9')]), wr(2, [{ k: 'm8x9', m: 1, t: 6500 }])] };
   let wl = S.weakList(wd, 'p');
   check('ошибка — в списке', wl.indexOf('m6x7') >= 0);
   check('медленный ответ — в списке', wl.indexOf('m8x9') >= 0);
@@ -198,6 +230,10 @@
   check('третий раунд недели с чистым блицем — задание выполнено', res.questWon && res.total === 22 && pl.quests.length === 1, res.lines);
   res = S.commit(cd, pl, Object.assign(JSON.parse(JSON.stringify(tr)), { id: 'r4', startedAt: mon + 3000 }), mon);
   check('задание недели награждается один раз', !res.questWon);
+  const keysRound = Object.assign(JSON.parse(JSON.stringify(second)), { id: 'r5', input: 'keys', startedAt: mon + 4000 });
+  res = S.commit(cd, pl, keysRound, mon);
+  check('сам: первый раунд с клавиатуры — свой отдельный рекорд', res.first && res.record && !res.prev);
+  check('рекорды «вслух» не смешаны с «сам»', S.records(cd, 'school', 'p', { input: 'keys' }).length === 1 && S.records(cd, 'school', 'p', { input: 'voice' }).length === 2);
 
   /* --- уровни --- */
   check('уровни: 0 звёзд — 1', U.levelOf(0) === 1);
