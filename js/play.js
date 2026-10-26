@@ -25,7 +25,7 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
     stop();
     const self = U.inputOf(p) === 'keys';
     R = new U.Round(pkg, { keys, next, onShow, onFinish, selfCheck: self });
-    ctx = { pkg, self, typed: '', flash: null, fx: null, fxIdx: -1, trail: 0, saved: !!(opts && opts.saved), startedAt: null, count: 3, cdPaused: false, swipeAt: 0, ghost: ghostFor(pkg, p, self),
+    ctx = { pkg, self, typed: '', flash: null, fx: null, fxIdx: -1, trail: 0, pauses: 0, saved: !!(opts && opts.saved), startedAt: null, count: 3, cdPaused: false, swipeAt: 0, ghost: ghostFor(pkg, p, self),
       exam: opts && opts.exam ? Object.assign({}, opts.exam, U.levels.terms(U.levels.byId(opts.exam.id), opts.exam.level)) : null };
     U.go('round', {}, { replace: ui.screen === 'round' || ui.screen === 'result' });
     acquireWake();
@@ -193,7 +193,7 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
     h.style.left = document.getElementById('trk-line').style.width = (v * 100).toFixed(1) + '%';
     ctx.trail = v;
   }
-  U.after.round = () => moveTrail(true);
+  U.after.round = () => { moveTrail(true); fitAnswers(); };
   function sparksHTML(age) {
     const cols = ['#ffc531', '#2fbf71', '#ff7ad9', '#4fd1ff'];
     let s = '';
@@ -206,8 +206,9 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
     const pkg = ctx.pkg, mode = pkg.mode, n = R.items.length, cur = R.cur();
     const counting = ctx.count > 0, paused = R.paused || ctx.cdPaused;
     const counter = R.total ? `${Math.max(n, 1)} / ${R.total}` : `№ ${Math.max(n, 1)}`;
+    const spent = !paused && !counting && !canPause();
     const pauseBtn = counting && !ctx.cdPaused ? '<span class="icon-gap"></span>'
-      : `<button class="icon-btn" data-act="pause" aria-label="${paused ? 'Продолжить' : 'Пауза'}">${ic(paused ? 'play' : 'pause')}</button>`;
+      : `<button class="icon-btn${spent ? ' spent' : ''}" data-act="pause" aria-label="${paused ? 'Продолжить' : spent ? 'Пауза уже была' : 'Пауза'}">${ic(paused ? 'play' : 'pause')}</button>`;
     let html = `<div class="topbar"><div class="pill">${counter}</div><div class="grow center pkg-name">${ctx.exam ? ic('trophy') : ''}${esc(pkg.name)}</div>${pauseBtn}</div>`;
 
     if (R.total && R.total <= 40) {
@@ -236,14 +237,14 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
 
     let card;
     if (paused) {
-      card = `<div class="example-card pause-card"><div class="eq" style="margin:0 0 ${ctx.exam ? 6 : 18}px">Пауза</div>${ctx.exam ? '<div class="listen" style="margin:0 0 14px">После паузы испытание не засчитается</div>' : ''}
+      card = `<div class="example-card pause-card"><div class="eq" style="margin:0 0 6px">Пауза</div><div class="listen" style="margin:0 0 14px">${ctx.exam ? 'После паузы испытание не засчитается. ' : ''}Пауза — один раз за раунд</div>
         <button class="btn btn-primary btn-big" data-act="resume">${ic('play')}Продолжить</button>
         <button class="link-btn" data-act="abort">Прервать раунд</button></div>`;
     } else if (counting) {
       card = `<div class="example-card"><div class="count-big">${ctx.count}</div><div class="eq">Приготовились!</div></div>`;
     } else if (mode === 'dictation') {
       const line = ctx.self ? `<div class="answers-line" aria-label="Ответы">${answersLine()}</div>` : '';
-      card = `<div class="example-card"><div class="card-num">${ic('sound')}</div><div class="example">№ ${n}</div><div class="listen">${ctx.self ? 'Слушай и набирай ответ' : 'Слушай и пиши ответ'}</div>${line}</div>`;
+      card = `<div class="example-card dict-card"><div class="card-num">${ic('sound')}</div><div class="example">№ ${n}</div><div class="listen">${ctx.self ? 'Слушай и набирай ответ' : 'Слушай и пиши ответ'}</div>${line}</div>`;
     } else if (R.pendingEnd !== null) {
       card = `<div class="example-card"><div class="card-badge bad">${ic('cross')}Ошибка — серия закончилась</div>
         <div class="example">${U.exHTML(cur.k)}</div>
@@ -278,10 +279,15 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
   };
 
   // Строка ответов диктанта через запятую, как в тетради: последние 10 и то, что набирается сейчас
+  // Строка ответов диктанта — всегда одна строка: новые ответы справа, старые уходят влево за край,
+  // чтобы строка не росла вниз и не наезжала на клавиатуру (Сергей, 26.10.2026)
   function answersLine() {
     const done = R.items.slice(0, R.items.length - 1).map((it) => (it.a !== undefined ? it.a : '—'));
-    const lead = done.length > 10 ? '…, ' : '';
-    return lead + done.slice(-10).concat([`<b class="typed-in">${ctx.typed || '&nbsp;'}</b>`]).join(', ');
+    return '<span class="al-track">' + done.slice(-16).concat([`<b class="typed-in">${ctx.typed || '&nbsp;'}</b>`]).join(', ') + '</span>';
+  }
+  function fitAnswers() {
+    const box = document.querySelector('.answers-line'), tr = box && box.firstElementChild;
+    if (tr) box.classList.toggle('long', tr.scrollWidth > box.clientWidth + 1);
   }
   function keypadHTML(off) {
     // ноль — широкий, как на калькуляторе; справа «стереть»
@@ -338,7 +344,7 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
     R.draft = ctx.typed ? Number(ctx.typed) : null;
     const box = document.querySelector('.example-card .typed'), line = document.querySelector('.answers-line .typed-in');
     if (box) { box.textContent = ctx.typed || '?'; box.classList.toggle('empty', !ctx.typed); }
-    else if (line) line.innerHTML = ctx.typed || '&nbsp;';
+    else if (line) { line.innerHTML = ctx.typed || '&nbsp;'; fitAnswers(); }
     else { U.render(); return; }
     sig = signature();
   };
@@ -370,14 +376,19 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
       if (ctx.cdPaused) countdown(); else { ctx.cdPaused = true; clearTimeout(ctx.timer); U.render(); }
       return;
     }
-    if (R.paused) { R.resume(performance.now()); acquireWake(); } else { R.pause(performance.now()); U.sound.silence(); }
+    if (R.paused) { R.resume(performance.now()); acquireWake(); }
+    else if (!canPause()) { U.toast('Пауза — только один раз за раунд'); return; }
+    else pauseRound();
     U.render();
   };
+  // Пауза — один раз за раунд (Сергей, 26.10.2026). Отсчёт 3-2-1 не считается: часы ещё не идут.
+  function canPause() { return !!ctx && ctx.pauses < 1; }
+  function pauseRound() { R.pause(performance.now()); ctx.pauses++; U.sound.silence(); }
   U.actions.pause = () => P.togglePause();
   U.actions.resume = () => P.togglePause();
   P.askAbort = function () {
     if (!R) return;
-    if (ctx.count > 0) { ctx.cdPaused = true; clearTimeout(ctx.timer); } else if (!R.paused) R.pause(performance.now());
+    if (ctx.count > 0) { ctx.cdPaused = true; clearTimeout(ctx.timer); } else if (!R.paused && canPause()) pauseRound();
     U.render();
     U.confirm('Прервать раунд?', 'Результат не сохранится.', 'Прервать', () => { stop(); U.back(); }, { danger: true, no: 'Играть дальше' });
   };
@@ -417,8 +428,8 @@ const touch = () => (window.matchMedia && window.matchMedia('(pointer: coarse)')
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       if (R && ctx && ui.screen === 'round') {
-        if (ctx.count > 0) { ctx.cdPaused = true; clearTimeout(ctx.timer); } else if (!R.paused) R.pause(performance.now());
-        U.sound.silence();
+        if (ctx.count > 0) { ctx.cdPaused = true; clearTimeout(ctx.timer); U.sound.silence(); }
+        else if (!R.paused && canPause()) pauseRound();
         U.render();
       }
     } else if (R && ui.screen === 'round') acquireWake();

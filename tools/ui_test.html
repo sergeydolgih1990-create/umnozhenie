@@ -72,6 +72,11 @@
     click('[data-act="resume"]');
     await wait(7100);
     check('после паузы ритм продолжается', R().items.length === 4, R().items.length);
+    check('пауза уже была — кнопка паузы погасла', !!$('.icon-btn.spent[data-act="pause"]'));
+    click('[data-act="pause"]'); await wait(100);
+    check('вторая пауза за раунд не ставится, подсказка', !R().paused && /только один раз за раунд/.test(document.body.textContent));
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true })); await wait(50);
+    check('и пробелом тоже', !R().paused);
     U.play.askAbort();
     click('[data-act="modalYes"]');
     await wait(400);
@@ -288,6 +293,10 @@
     await typeAns(wrongOf(ansOf()));
     check('диктант сам: ответы через запятую', /\d+,\s*\d+/.test($('.answers-line').textContent));
     check('диктант сам: без вспышки верно/ошибка', !$('.card-badge'));
+    for (let i = 0; i < 12; i++) await typeAns(ansOf());
+    const al = $('.answers-line').getBoundingClientRect(), cdr = $('.example-card').getBoundingClientRect(), kpr = $('.keypad').getBoundingClientRect();
+    check('диктант: 14 ответов — строка одна и в карточке, клавиатура свободна', al.height < 50 && al.bottom <= cdr.bottom && cdr.bottom <= kpr.top + 1 && $('.answers-line').classList.contains('long'), [al.height, al.bottom, cdr.bottom, kpr.top]);
+    check('диктант: видны последние ответы и место для нового', $('.answers-line .typed-in').getBoundingClientRect().right <= $('.answers-line').getBoundingClientRect().right + 1);
     U.play.askAbort(); click('[data-act="modalYes"]'); await wait(300);
 
     /* Экран «Как устроены награды» */

@@ -1,6 +1,6 @@
 ﻿/* Работа без интернета: файлы тренажёра и шрифт хранятся в кеше браузера.
    Сначала отдаём из кеша, а в фоне обновляем — новая версия появится со следующего открытия. */
-const CACHE = 'umnozhenie-v7';
+const CACHE = 'umnozhenie-v8';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/themes.js', 'js/art.js', 'js/store.js', 'js/gen.js', 'js/packages.js', 'js/engine.js', 'js/scoring.js', 'js/levels.js',

@@ -519,6 +519,18 @@ button.pill { cursor: pointer; }
 .card .input-toggle > .on { background: var(--ink); color: #fff; box-shadow: none; }
 .segs i.done { background: var(--on-bg-soft); opacity: .5; }
 .answers-line { font-size: 24px; }
+/* диктант: строка ответов — одна строка внутри карточки; длинная обрезается слева с мягким краем */
+.answers-line { display: flex; justify-content: flex-end; overflow: hidden; white-space: nowrap; word-break: normal; flex: none; }
+.answers-line .al-track { flex: none; }
+.answers-line.long { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 36px); mask-image: linear-gradient(90deg, transparent 0, #000 36px); }
+.example-card.dict-card { overflow: hidden; }
+.dict-card .example { flex: none; }
+@container (max-height: 720px) {
+  .answers-line { font-size: 20px; margin-top: 8px; padding: 6px 10px; }
+  .dict-card .listen { margin-top: 6px; font-size: 17px; }
+}
+/* пауза уже была — кнопка гаснет */
+.icon-btn.spent { opacity: .35; }
 .help-list.terms { gap: 8px; line-height: 1.4; }
 
 /* ---------- Уровни и испытания ---------- */

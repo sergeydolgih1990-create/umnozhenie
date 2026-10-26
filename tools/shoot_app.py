@@ -39,6 +39,8 @@ SHOTS.update({
     "keys-round": ("player=p1&input=keys&play=school&upto=3", PHONE),
     "keys-small": ("player=p2&input=keys&play=fast&upto=4", "360,640"),
     "keys-dict": ("player=p3&input=keys&play=dictation&upto=5", PHONE),
+    "dict-long": ("player=p1&input=keys&play=dictation&upto=14", PHONE),
+    "dict-long-small": ("player=p2&input=keys&play=dictation&upto=14", "360,640"),
     "keys-result": ("player=p2&input=keys&play=school&upto=16&stage=result", PHONE),
     "keys-pc": ("player=p1&input=keys&play=school&upto=2", PC),
     "help": ("screen=help", PHONE),
